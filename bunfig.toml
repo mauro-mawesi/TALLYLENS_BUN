@@ -1,0 +1,45 @@
+# Bun configuration file
+
+[install]
+# Use the system's global cache for packages
+globalDir = "~/.bun/install/global"
+
+# Install peer dependencies automatically
+peer = true
+
+# Production mode - exclude devDependencies
+production = false
+
+[install.cache]
+# Cache directory
+dir = "~/.bun/install/cache"
+
+# Disable cache
+disable = false
+
+[install.lockfile]
+# Save exact versions to lockfile
+save = true
+
+# Generate lockfile
+print = "yarn"
+
+[run]
+# Enable hot reloading
+hot = true
+
+# Silent mode (less output)
+silent = false
+
+[test]
+# Test runner configuration
+root = "./tests"
+coverage = false
+coverageReporter = ["text", "lcov"]
+
+[debug]
+# Enable source maps
+sourcemap = "inline"
+
+# Telemetry is configured at root level
+telemetry = false

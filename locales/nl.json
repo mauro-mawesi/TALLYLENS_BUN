@@ -1,0 +1,101 @@
+{
+  "auth": {
+    "login_success": "Aanmelden succesvol",
+    "login_failed": "Ongeldige inloggegevens",
+    "token_expired": "Token is verlopen",
+    "token_invalid": "Ongeldig token",
+    "unauthorized": "Ongeautoriseerde toegang",
+    "user_not_found": "Gebruiker niet gevonden",
+    "email_already_exists": "E-mail bestaat al",
+    "username_already_exists": "Gebruikersnaam bestaat al",
+    "registration_success": "Registratie succesvol",
+    "password_reset_sent": "Wachtwoord reset e-mail verzonden",
+    "password_reset_success": "Wachtwoord succesvol gereset",
+    "token_refreshed_success": "Token succesvol vernieuwd",
+    "logout_success": "Succesvol uitgelogd",
+    "logout_all_devices_success": "Succesvol uitgelogd van alle apparaten",
+    "password_changed_success": "Wachtwoord succesvol gewijzigd",
+    "email_verified_success": "E-mail succesvol geverifieerd",
+    "language_updated_success": "Taalvoorkeur succesvol bijgewerkt"
+  },
+  "receipts": {
+    "created_successfully": "Kassabon succesvol aangemaakt",
+    "updated_successfully": "Kassabon succesvol bijgewerkt",
+    "deleted_successfully": "Kassabon succesvol verwijderd",
+    "not_found": "Kassabon niet gevonden",
+    "processing_failed": "Verwerking van kassabon mislukt",
+    "ocr_failed": "Kon geen tekst uit afbeelding halen",
+    "duplicate_detected": "Dubbele kassabon gedetecteerd",
+    "validation_failed": "Validatie van kassabon mislukt",
+    "anomalies_detected": "{{count}} anomalieën gedetecteerd in kassabon gegevens"
+  },
+  "products": {
+    "updated_successfully": "Product succesvol bijgewerkt",
+    "not_found": "Product niet gevonden",
+    "category_invalid": "Ongeldige productcategorie",
+    "no_price_history": "Geen prijsgeschiedenis gevonden voor dit product"
+  },
+  "validation": {
+    "required_field": "{{field}} is verplicht",
+    "invalid_email": "Geef een geldig e-mailadres op",
+    "invalid_uuid": "Ongeldig ID-formaat",
+    "invalid_url": "Geef een geldige URL op",
+    "min_length": "{{field}} moet minimaal {{min}} tekens bevatten",
+    "max_length": "{{field}} mag niet meer dan {{max}} tekens bevatten",
+    "invalid_date": "Ongeldig datumformaat",
+    "invalid_amount": "Bedrag moet een positief getal zijn",
+    "invalid_language": "Taal moet een van de volgende zijn: en, es, nl"
+  },
+  "errors": {
+    "internal_server": "Interne serverfout",
+    "not_found": "Bron niet gevonden",
+    "bad_request": "Ongeldige aanvraag",
+    "forbidden": "Toegang verboden",
+    "rate_limit_exceeded": "Te veel verzoeken, probeer het later opnieuw",
+    "file_too_large": "Bestandsgrootte overschrijdt limiet",
+    "invalid_file_type": "Ongeldig bestandstype"
+  },
+  "categories": {
+    "receipt": {
+      "Mercado": "Supermarkt",
+      "Transporte": "Transport",
+      "Comida": "Eten",
+      "Combustible": "Brandstof",
+      "Otros": "Overige"
+    },
+    "product": {
+      "Alimentos": "Voedsel",
+      "Bebidas": "Dranken",
+      "Limpieza": "Schoonmaak",
+      "Higiene": "Persoonlijke verzorging",
+      "Farmacia": "Apotheek",
+      "Otros": "Overige"
+    }
+  },
+  "ai": {
+    "processing_receipt": "Kassabon verwerken met AI",
+    "translation_failed": "Vertaling mislukt",
+    "categorization_failed": "Categorisering mislukt",
+    "validation_anomaly": "Validatie anomalie gedetecteerd: {{message}}"
+  },
+  "analytics": {
+    "insufficient_data": "Onvoldoende aankoopgegevens voor analyse. Minimaal 2 aankopen nodig."
+  },
+  "categories": {
+    "uncategorized": "Ongecategoriseerd"
+  },
+  "alerts": {
+    "price_increase_title": "Prijswaarschuwing",
+    "price_increase_message": "{{product}} is recent {{increase}}% duurder geworden",
+    "running_low_title": "Voorraad Laag",
+    "running_low_message": "Je hebt {{product}} al {{days}} dagen niet gekocht",
+    "budget_exceeded_title": "Budget Waarschuwing",
+    "budget_exceeded_message": "Uitgaven voor {{category}} liggen {{increase}}% boven het gemiddelde deze maand",
+    "savings_opportunity_title": "Besparingskans",
+    "savings_opportunity_message": "Je kunt {{savings}}% besparen op {{product}} door ergens anders te winkelen in plaats van {{merchant}}"
+  },
+  "recommendations": {
+    "frequently_bought_together": "Klanten die {{productA}} kopen, kopen ook {{productB}}",
+    "seasonal_trend": "{{product}} wordt vaak gekocht in {{month}}"
+  }
+}

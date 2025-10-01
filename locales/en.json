@@ -1,0 +1,101 @@
+{
+  "auth": {
+    "login_success": "Login successful",
+    "login_failed": "Invalid credentials",
+    "token_expired": "Token has expired",
+    "token_invalid": "Invalid token",
+    "unauthorized": "Unauthorized access",
+    "user_not_found": "User not found",
+    "email_already_exists": "Email already exists",
+    "username_already_exists": "Username already exists",
+    "registration_success": "Registration successful",
+    "password_reset_sent": "Password reset email sent",
+    "password_reset_success": "Password reset successful",
+    "token_refreshed_success": "Token refreshed successfully",
+    "logout_success": "Logged out successfully",
+    "logout_all_devices_success": "Logged out from all devices successfully",
+    "password_changed_success": "Password changed successfully",
+    "email_verified_success": "Email verified successfully",
+    "language_updated_success": "Language preference updated successfully"
+  },
+  "receipts": {
+    "created_successfully": "Receipt created successfully",
+    "updated_successfully": "Receipt updated successfully",
+    "deleted_successfully": "Receipt deleted successfully",
+    "not_found": "Receipt not found",
+    "processing_failed": "Failed to process receipt",
+    "ocr_failed": "Could not extract text from image",
+    "duplicate_detected": "Duplicate receipt detected",
+    "validation_failed": "Receipt validation failed",
+    "anomalies_detected": "{{count}} anomalies detected in receipt data"
+  },
+  "products": {
+    "updated_successfully": "Product updated successfully",
+    "not_found": "Product not found",
+    "category_invalid": "Invalid product category",
+    "no_price_history": "No price history found for this product"
+  },
+  "validation": {
+    "required_field": "{{field}} is required",
+    "invalid_email": "Please provide a valid email",
+    "invalid_uuid": "Invalid ID format",
+    "invalid_url": "Please provide a valid URL",
+    "min_length": "{{field}} must be at least {{min}} characters",
+    "max_length": "{{field}} must not exceed {{max}} characters",
+    "invalid_date": "Invalid date format",
+    "invalid_amount": "Amount must be a positive number",
+    "invalid_language": "Language must be one of: en, es, nl"
+  },
+  "errors": {
+    "internal_server": "Internal server error",
+    "not_found": "Resource not found",
+    "bad_request": "Bad request",
+    "forbidden": "Access forbidden",
+    "rate_limit_exceeded": "Too many requests, please try again later",
+    "file_too_large": "File size exceeds limit",
+    "invalid_file_type": "Invalid file type"
+  },
+  "categories": {
+    "receipt": {
+      "Mercado": "Grocery",
+      "Transporte": "Transportation",
+      "Comida": "Food",
+      "Combustible": "Fuel",
+      "Otros": "Others"
+    },
+    "product": {
+      "Alimentos": "Food",
+      "Bebidas": "Beverages",
+      "Limpieza": "Cleaning",
+      "Higiene": "Personal Care",
+      "Farmacia": "Pharmacy",
+      "Otros": "Others"
+    }
+  },
+  "ai": {
+    "processing_receipt": "Processing receipt with AI",
+    "translation_failed": "Translation failed",
+    "categorization_failed": "Categorization failed",
+    "validation_anomaly": "Validation anomaly detected: {{message}}"
+  },
+  "analytics": {
+    "insufficient_data": "Insufficient purchase data for analysis. Need at least 2 purchases."
+  },
+  "categories": {
+    "uncategorized": "Uncategorized"
+  },
+  "alerts": {
+    "price_increase_title": "Price Alert",
+    "price_increase_message": "{{product}} has increased by {{increase}}% recently",
+    "running_low_title": "Running Low",
+    "running_low_message": "You haven't bought {{product}} in {{days}} days",
+    "budget_exceeded_title": "Budget Alert",
+    "budget_exceeded_message": "{{category}} spending is {{increase}}% above average this month",
+    "savings_opportunity_title": "Savings Opportunity",
+    "savings_opportunity_message": "You could save {{savings}}% on {{product}} by shopping elsewhere instead of {{merchant}}"
+  },
+  "recommendations": {
+    "frequently_bought_together": "Customers who buy {{productA}} also buy {{productB}}",
+    "seasonal_trend": "{{product}} is frequently purchased in {{month}}"
+  }
+}

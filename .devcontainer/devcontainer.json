@@ -1,0 +1,33 @@
+{
+    "name": "recibos-app-bun",
+    "dockerFile": "Dockerfile",
+    "forwardPorts": [
+        3000,
+        5433
+    ],
+    "postCreateCommand": "bun install",
+    "remoteUser": "vscode",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode-remote.remote-containers",
+                "dbaeumer.vscode-eslint",
+                "oven.bun-vscode"
+            ],
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "terminal.integrated.profiles.linux": {
+                    "bash": {
+                        "path": "/bin/bash"
+                    }
+                }
+            }
+        }
+    },
+    "features": {},
+    "mounts": [
+        "source=/home/mauricio/projects/LAB/RECIBOS_APP/uploads,target=/workspaces/backend/uploads,type=bind",
+        "source=${localWorkspaceFolder}/.devcontainer/secrets,target=/workspaces/backend/.devcontainer/secrets,type=bind,consistency=cached"
+    ],
+    "runArgs": ["--network=host"]
+}

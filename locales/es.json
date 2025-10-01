@@ -1,0 +1,101 @@
+{
+  "auth": {
+    "login_success": "Inicio de sesión exitoso",
+    "login_failed": "Credenciales inválidas",
+    "token_expired": "El token ha expirado",
+    "token_invalid": "Token inválido",
+    "unauthorized": "Acceso no autorizado",
+    "user_not_found": "Usuario no encontrado",
+    "email_already_exists": "El email ya existe",
+    "username_already_exists": "El nombre de usuario ya existe",
+    "registration_success": "Registro exitoso",
+    "password_reset_sent": "Email de restablecimiento enviado",
+    "password_reset_success": "Contraseña restablecida exitosamente",
+    "token_refreshed_success": "Token renovado exitosamente",
+    "logout_success": "Sesión cerrada exitosamente",
+    "logout_all_devices_success": "Sesión cerrada en todos los dispositivos exitosamente",
+    "password_changed_success": "Contraseña cambiada exitosamente",
+    "email_verified_success": "Email verificado exitosamente",
+    "language_updated_success": "Preferencia de idioma actualizada exitosamente"
+  },
+  "receipts": {
+    "created_successfully": "Recibo creado exitosamente",
+    "updated_successfully": "Recibo actualizado exitosamente",
+    "deleted_successfully": "Recibo eliminado exitosamente",
+    "not_found": "Recibo no encontrado",
+    "processing_failed": "Error al procesar el recibo",
+    "ocr_failed": "No se pudo extraer texto de la imagen",
+    "duplicate_detected": "Recibo duplicado detectado",
+    "validation_failed": "Validación del recibo fallida",
+    "anomalies_detected": "{{count}} anomalías detectadas en los datos del recibo"
+  },
+  "products": {
+    "updated_successfully": "Producto actualizado exitosamente",
+    "not_found": "Producto no encontrado",
+    "category_invalid": "Categoría de producto inválida",
+    "no_price_history": "No se encontró historial de precios para este producto"
+  },
+  "validation": {
+    "required_field": "{{field}} es requerido",
+    "invalid_email": "Por favor proporciona un email válido",
+    "invalid_uuid": "Formato de ID inválido",
+    "invalid_url": "Por favor proporciona una URL válida",
+    "min_length": "{{field}} debe tener al menos {{min}} caracteres",
+    "max_length": "{{field}} no debe exceder {{max}} caracteres",
+    "invalid_date": "Formato de fecha inválido",
+    "invalid_amount": "El monto debe ser un número positivo",
+    "invalid_language": "El idioma debe ser uno de: en, es, nl"
+  },
+  "errors": {
+    "internal_server": "Error interno del servidor",
+    "not_found": "Recurso no encontrado",
+    "bad_request": "Solicitud incorrecta",
+    "forbidden": "Acceso prohibido",
+    "rate_limit_exceeded": "Demasiadas solicitudes, por favor intenta más tarde",
+    "file_too_large": "El archivo excede el tamaño límite",
+    "invalid_file_type": "Tipo de archivo inválido"
+  },
+  "categories": {
+    "receipt": {
+      "Mercado": "Mercado",
+      "Transporte": "Transporte",
+      "Comida": "Comida",
+      "Combustible": "Combustible",
+      "Otros": "Otros"
+    },
+    "product": {
+      "Alimentos": "Alimentos",
+      "Bebidas": "Bebidas",
+      "Limpieza": "Limpieza",
+      "Higiene": "Higiene",
+      "Farmacia": "Farmacia",
+      "Otros": "Otros"
+    }
+  },
+  "ai": {
+    "processing_receipt": "Procesando recibo con IA",
+    "translation_failed": "Falló la traducción",
+    "categorization_failed": "Falló la categorización",
+    "validation_anomaly": "Anomalía de validación detectada: {{message}}"
+  },
+  "analytics": {
+    "insufficient_data": "Datos de compra insuficientes para el análisis. Se necesitan al menos 2 compras."
+  },
+  "categories": {
+    "uncategorized": "Sin categoría"
+  },
+  "alerts": {
+    "price_increase_title": "Alerta de Precio",
+    "price_increase_message": "{{product}} ha aumentado un {{increase}}% recientemente",
+    "running_low_title": "Stock Bajo",
+    "running_low_message": "No has comprado {{product}} en {{days}} días",
+    "budget_exceeded_title": "Alerta de Presupuesto",
+    "budget_exceeded_message": "El gasto en {{category}} está {{increase}}% por encima del promedio este mes",
+    "savings_opportunity_title": "Oportunidad de Ahorro",
+    "savings_opportunity_message": "Podrías ahorrar {{savings}}% en {{product}} comprando en otro lugar en vez de {{merchant}}"
+  },
+  "recommendations": {
+    "frequently_bought_together": "Los clientes que compran {{productA}} también compran {{productB}}",
+    "seasonal_trend": "{{product}} se compra frecuentemente en {{month}}"
+  }
+}
