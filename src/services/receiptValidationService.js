@@ -31,6 +31,25 @@ export function validateAndCorrectReceiptData(data) {
     const validated = JSON.parse(JSON.stringify(data));
     const anomalies = [];
 
+    // 0. Normalizar fecha de compra si es ambigua
+    try {
+        const normalized = resolvePurchaseDate(
+            data.purchaseDate,
+            data.purchaseDateRaw,
+            data.country,
+            data.currency,
+            (global?.i18n?.getLocale && global.i18n.getLocale()) || 'en'
+        );
+        if (normalized && normalized.dateISO && normalized.changed) {
+            validated.purchaseDate = normalized.dateISO;
+            validated.dateResolution = {
+                method: normalized.method,
+                raw: data.purchaseDateRaw || null,
+                country: data.country || null
+            };
+        }
+    } catch {}
+
     // 1. Validar productos individuales
     if (validated.items && validated.items.length > 0) {
         const productValidation = validateProducts(validated.items);
@@ -68,6 +87,74 @@ export function validateAndCorrectReceiptData(data) {
     }
 
     return validated;
+}
+
+// ======================= DATE NORMALIZATION =======================
+function resolvePurchaseDate(purchaseDateISO, purchaseDateRaw, country, currency, locale) {
+    const out = { dateISO: purchaseDateISO || null, changed: false, method: 'none' };
+    const raw = (purchaseDateRaw || '').trim();
+    if (!raw) return out;
+
+    // Match typical numeric formats: dd/mm/yyyy or mm/dd/yyyy or with '-'
+    const m = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+    if (!m) return out;
+
+    const a = parseInt(m[1], 10);
+    const b = parseInt(m[2], 10);
+    const year = parseInt(m[3].length === 2 ? ('20' + m[3]) : m[3], 10);
+    if (a < 1 || a > 31 || b < 1 || b > 31) return out;
+
+    const euCountries = new Set(['NL','ES','FR','DE','BE','IT','PT','IE','LU','AT','FI','SE','DK','NO','PL','CZ','SK','HU','RO','BG','HR','SI','GR']);
+    const isEU = (country && euCountries.has(String(country).toUpperCase())) || currency === 'EUR';
+    const isUS = (country && String(country).toUpperCase() === 'US') || currency === 'USD';
+
+    // Build candidate dates
+    const pad = (n) => String(n).padStart(2,'0');
+    const asDMY = [year, pad(b), pad(a)].join('-'); // dd/mm -> yyyy-mm-dd
+    const asMDY = [year, pad(a), pad(b)].join('-'); // mm/dd -> yyyy-mm-dd
+
+    // Helper: plausibility
+    const today = new Date();
+    const maxFutureDays = 7;
+    const maxPastYears = 2;
+    const isPlausible = (iso) => {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return false;
+        const diffDays = (d - today) / (1000*60*60*24);
+        if (diffDays > maxFutureDays) return false;
+        const pastYears = (today - d) / (1000*60*60*24*365);
+        if (pastYears > maxPastYears) return false;
+        return true;
+    };
+
+    const dmyOk = isPlausible(asDMY);
+    const mdyOk = isPlausible(asMDY);
+
+    // If not ambiguous (one component > 12), prefer the only valid interpretation
+    const ambiguous = (a <= 12 && b <= 12);
+
+    let chosen = null;
+    let method = 'none';
+    if (!ambiguous) {
+        // If a>12 => a is day, use DMY; if b>12 => a is month, use MDY
+        if (a > 12) { chosen = asDMY; method = 'by_components_dmy'; }
+        else if (b > 12) { chosen = asMDY; method = 'by_components_mdy'; }
+    } else {
+        // Ambiguous: choose by region preference if plausible
+        if (isEU && dmyOk) { chosen = asDMY; method = 'by_country_eu'; }
+        else if (isUS && mdyOk) { chosen = asMDY; method = 'by_country_us'; }
+        else if (dmyOk && !mdyOk) { chosen = asDMY; method = 'by_plausibility_dmy'; }
+        else if (mdyOk && !dmyOk) { chosen = asMDY; method = 'by_plausibility_mdy'; }
+        else if (dmyOk) { chosen = asDMY; method = 'fallback_dmy'; }
+        else if (mdyOk) { chosen = asMDY; method = 'fallback_mdy'; }
+    }
+
+    if (chosen && chosen !== purchaseDateISO) {
+        out.dateISO = chosen;
+        out.changed = true;
+        out.method = method;
+    }
+    return out;
 }
 
 /**
@@ -180,31 +267,54 @@ function validateTotals(items, totals) {
     const anomalies = [];
     const correctedTotals = { ...totals };
 
-    // Calcular suma de productos
-    const calculatedSubtotal = items.reduce((sum, item) => {
-        return sum + (item.totalPrice || item.unitPrice || 0);
+    // Calcular suma de productos (a menudo BRUTO con IVA por línea)
+    const itemsSum = items.reduce((sum, item) => {
+        if (typeof item.totalPrice === 'number') return sum + item.totalPrice;
+        if (typeof item.unitPrice === 'number' && typeof item.quantity === 'number') return sum + (item.unitPrice * item.quantity);
+        if (typeof item.unitPrice === 'number') return sum + item.unitPrice;
+        return sum;
     }, 0);
 
-    // Validar subtotal
-    if (correctedTotals.subtotal) {
-        const subtotalDiff = Math.abs(calculatedSubtotal - correctedTotals.subtotal);
-        const subtotalTolerance = calculatedSubtotal * TOLERANCES.subtotalMismatch;
+    // Validar subtotal considerando que itemsSum puede representar el TOTAL (líneas con IVA incluido)
+    const hasSubtotal = typeof correctedTotals.subtotal === 'number';
+    const hasTotal = typeof correctedTotals.total === 'number';
+    const distToSubtotal = hasSubtotal ? Math.abs(itemsSum - correctedTotals.subtotal) : Number.POSITIVE_INFINITY;
+    const distToTotal = hasTotal ? Math.abs(itemsSum - correctedTotals.total) : Number.POSITIVE_INFINITY;
+    const preferGrossItems = distToTotal < distToSubtotal;
 
-        if (subtotalDiff > subtotalTolerance) {
-            anomalies.push({
-                type: 'subtotal_mismatch',
-                calculated: calculatedSubtotal,
-                declared: correctedTotals.subtotal,
-                difference: subtotalDiff,
-                message: `Subtotal no coincide con suma de productos`
-            });
-            // Usar el calculado si la diferencia es muy grande
-            if (subtotalDiff > calculatedSubtotal * 0.2) {
-                correctedTotals.subtotal = calculatedSubtotal;
+    if (hasSubtotal) {
+        if (!preferGrossItems) {
+            const tolerance = (itemsSum || 1) * TOLERANCES.subtotalMismatch;
+            if (distToSubtotal > tolerance) {
+                anomalies.push({
+                    type: 'subtotal_mismatch',
+                    calculated: itemsSum,
+                    declared: correctedTotals.subtotal,
+                    difference: distToSubtotal,
+                    message: `Subtotal no coincide con suma de productos`
+                });
+                // Si la diferencia es grande, ajustar
+                if (distToSubtotal > (itemsSum * 0.2)) {
+                    if (typeof correctedTotals.tax === 'number' && hasTotal) {
+                        correctedTotals.subtotal = correctedTotals.total - correctedTotals.tax;
+                    } else {
+                        correctedTotals.subtotal = itemsSum;
+                    }
+                }
+            }
+        } else {
+            // itemsSum se parece más al total: no marcar mismatch de subtotal y ajustar si podemos
+            if (typeof correctedTotals.tax === 'number' && hasTotal) {
+                correctedTotals.subtotal = correctedTotals.total - correctedTotals.tax;
             }
         }
-    } else if (calculatedSubtotal > 0) {
-        correctedTotals.subtotal = calculatedSubtotal;
+    } else {
+        // Sin subtotal: derivar el mejor posible
+        if (typeof correctedTotals.tax === 'number' && hasTotal) {
+            correctedTotals.subtotal = correctedTotals.total - correctedTotals.tax;
+        } else if (itemsSum > 0) {
+            correctedTotals.subtotal = itemsSum;
+        }
     }
 
     // Validar tax
@@ -239,7 +349,7 @@ function validateTotals(items, totals) {
     }
 
     // Validar y corregir total
-    const calculatedTotal = (correctedTotals.subtotal || calculatedSubtotal) +
+    const calculatedTotal = (correctedTotals.subtotal || itemsSum) +
                           (correctedTotals.tax || 0) -
                           (correctedTotals.discount || 0);
 

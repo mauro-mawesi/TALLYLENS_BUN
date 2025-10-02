@@ -104,6 +104,8 @@ router.post('/', [
     body('imageUrl').isURL().withMessage('imageUrl must be a valid URL'),
     body('notes').optional().isString().isLength({ max: 1000 }),
     body('category').optional().isIn(ALL_VALID_CATEGORIES),
+    body('processedByMLKit').optional().isBoolean(),
+    body('source').optional().isIn(['camera', 'gallery']),
     body('forceDuplicate').optional().isBoolean(),
     validate
 ], receiptsController.createReceipt);

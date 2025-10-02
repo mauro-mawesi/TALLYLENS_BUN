@@ -163,7 +163,7 @@ export const getReceiptById = asyncHandler(async (req, res) => {
 
 // Create a new receipt with OCR and item processing
 export const createReceipt = asyncHandler(async (req, res) => {
-    const { imageUrl, notes, category, forceDuplicate = false } = req.body;
+    const { imageUrl, notes, category, forceDuplicate = false, processedByMLKit = false, source } = req.body;
     const userId = req.user.id;
 
     // Start transaction for atomic operations
@@ -171,8 +171,9 @@ export const createReceipt = asyncHandler(async (req, res) => {
 
     try {
         // Extract data from receipt image
-        log.info('Processing receipt image', { userId, imageUrl });
-        const ocrResult = await extractReceiptData(imageUrl, req.locale);
+        const skipEnhancement = Boolean(processedByMLKit) && (source === 'camera' || !source);
+        log.info('Processing receipt image', { userId, imageUrl, processedByMLKit, source, skipEnhancement });
+        const ocrResult = await extractReceiptData(imageUrl, req.locale, { skipEnhancement, source, processedByMLKit });
 
         if (!ocrResult.success) {
             await transaction.rollback();
@@ -224,8 +225,15 @@ export const createReceipt = asyncHandler(async (req, res) => {
             });
         }
 
-        // Categorize receipt if category not provided
+        // Determine final category
+        // Priority:
+        // 1) Explicit category from request
+        // 2) Category provided by AI pipeline (already internal english)
+        // 3) Fallback: categorize from rawText (if any)
         let finalCategory = category;
+        if (!finalCategory && ocrResult.category) {
+            finalCategory = ocrResult.category;
+        }
         if (!finalCategory && ocrResult.rawText) {
             finalCategory = await categorizeReceipt(ocrResult.rawText, req.locale);
         }
@@ -268,7 +276,7 @@ export const createReceipt = asyncHandler(async (req, res) => {
         const receipt = await Receipt.create(receiptData, { transaction });
 
         // Process items if this is a grocery receipt and has items
-        if (finalCategory === 'grocery' && ocrResult.items && ocrResult.items.length > 0) {
+        if (finalCategory === 'grocery' && Array.isArray(ocrResult.items) && ocrResult.items.length > 0) {
             log.info('Processing receipt items', {
                 receiptId: receipt.id,
                 itemCount: ocrResult.items.length

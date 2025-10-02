@@ -1,14 +1,14 @@
-import vision from "@google-cloud/vision";
+// Google Vision OCR removed: unified AI-from-image pipeline only
 import fs from "fs";
 import path from "path";
 import url from "url";
 import { log } from "../utils/logger.js";
-import { processReceiptWithAI } from "./categorizationService.js";
+import { processReceiptWithAIFromImage } from "./categorizationService.js";
 import { validateAndCorrectReceiptData } from "./receiptValidationService.js";
 import imageEnhancementService from "./imageEnhancementService.js";
 import cacheService from "./cacheService.js";
 
-const client = new vision.ImageAnnotatorClient();
+// No Vision client
 
 // Clean VAT info to remove 0% rates or rates with 0 amounts
 function cleanVatInfo(vatInfo) {
@@ -75,148 +75,67 @@ function avgConfidence(words) {
     return vals.reduce((a,b)=>a+b,0) / vals.length;
 }
 
-export async function extractTextFromImage(imageUrl, { engine = 'auto', mlkitProcessed = false } = {}) {
+export async function extractTextFromImage() {
+    throw new Error('OCR is disabled. Use AI-from-image unified pipeline.');
+}
+
+export async function extractReceiptData(imageUrl, locale = 'en', options = {}) {
     try {
+        const { skipEnhancement = false, source = null, processedByMLKit = false } = options || {};
+        // 1) Load file and produce processed image (deskew/crop/orient/enhance)
         let imageBytes;
         let filePath;
         let fileName;
-
-        // Detectamos si es una URL local de nuestro backend (/uploads)
-        if (imageUrl.includes("/uploads/")) {
-            // Extraemos el nombre del archivo desde la URL
+        if (imageUrl.includes('/uploads/')) {
             fileName = path.basename(url.parse(imageUrl).pathname);
-            filePath = path.resolve("uploads", fileName);
+            filePath = path.resolve('uploads', fileName);
             imageBytes = fs.readFileSync(filePath);
         } else {
-            // Si fuera realmente una URL pública accesible
-            // Descargar la imagen primero
-            const response = await fetch(imageUrl);
-            const arrayBuffer = await response.arrayBuffer();
-            imageBytes = Buffer.from(arrayBuffer);
+            const resp = await fetch(imageUrl);
+            imageBytes = Buffer.from(await resp.arrayBuffer());
         }
-
-        // Process image with perspective correction + crop
-        // If image already processed by ML Kit (camera), skip perspective correction
-        const skipPerspectiveCorrection = Boolean(mlkitProcessed);
-
-        log.info("Processing image", {
-            skipPerspectiveCorrection,
-            operations: skipPerspectiveCorrection
-                ? "orientation + crop only"
-                : "perspective + orientation + crop",
-            hasFilePath: !!fileName,
-            fileName: fileName
-        });
-
-        // Pass fileName (not full path) to use path-based processing when available (more efficient)
-        const enhancementOptions = { skipPerspectiveCorrection };
-
-        if (fileName) {
-            enhancementOptions.fileName = fileName;
-        }
-
-        let processedImageResult = await imageEnhancementService.enhanceReceiptImage(
-            imageBytes,
-            enhancementOptions
-        );
-
-        // Handle result from Python processor (returns object) or Sharp fallback (returns buffer)
         let processedImage;
-        let processedFileName = fileName; // Default to original filename
+        let processedImageResult = null;
 
-        if (processedImageResult && typeof processedImageResult === 'object' && processedImageResult.buffer) {
-            // Python processor returned an object with buffer and processedFileName
-            processedImage = processedImageResult.buffer;
-            processedFileName = processedImageResult.processedFileName;
-
-            log.info("Using processed image from Python service", {
-                originalFileName: fileName,
-                processedFileName: processedFileName
-            });
+        if (skipEnhancement) {
+            // Skip any enhancement/cropping/orientation when image was already processed by ML Kit
+            log.info('Skipping enhancement due to processedByMLKit flag', { source, processedByMLKit });
+            processedImage = imageBytes;
         } else {
-            // Sharp fallback returned just a buffer
-            processedImage = processedImageResult;
-
-            // Save the processed version with original filename
-            if (filePath) {
-                await imageEnhancementService.saveEnhancedImage(processedImage, filePath);
-                log.info("Image processed with Sharp and saved", {
-                    path: filePath,
-                    skippedPerspective: skipPerspectiveCorrection
-                });
-            }
+            const enhancementOptions = {};
+            if (fileName) enhancementOptions.fileName = fileName;
+            processedImageResult = await imageEnhancementService.enhanceReceiptImage(imageBytes, enhancementOptions);
+            processedImage = (processedImageResult && processedImageResult.buffer) ? processedImageResult.buffer : processedImageResult;
         }
 
-        // Decide OCR engine (cost-aware)
-        let selectedEngine = engine;
-        let cacheKeyBase = null;
-        if (fileName) {
-            cacheKeyBase = `ocr:${fileName}`;
-        }
-
-        // Try cache first
-        if (cacheKeyBase && engine !== 'vision') {
-            const cached = await cacheService.get(`${cacheKeyBase}:${engine}`) || await cacheService.get(`${cacheKeyBase}:auto`);
-            if (cached?.text) {
-                log.info('OCR cache hit', { engine: cached.engine || engine, fileName });
-                return cached.text;
-            }
-        }
-
-        let finalText = '';
-        if (selectedEngine === 'local' || selectedEngine === 'auto') {
-            // Local OCR only supported for backend-uploaded files (we pass fileName)
-            if (fileName && isBackendUploads(imageUrl)) {
-                const local = await callLocalOcrViaProcessor(fileName);
-                const conf = avgConfidence(local.words);
-                const length = (local.text || '').length;
-                log.info('Local OCR result', { conf: Math.round(conf), length });
-                if (selectedEngine === 'local' || (selectedEngine === 'auto' && conf >= 65 && length >= 60)) {
-                    finalText = local.text || '';
+        // Build public URL for the processed image if available (prefer PUBLIC_BASE_URL if set)
+        let publicImageUrl = null;
+        try {
+            const base = new URL(imageUrl);
+            const publicBase = process.env.PUBLIC_BASE_URL || base.origin;
+            if (!skipEnhancement) {
+                if (processedImageResult && processedImageResult.processedFileName) {
+                    publicImageUrl = `${publicBase.replace(/\/$/, '')}/uploads/${processedImageResult.processedFileName}`;
+                } else if (fileName) {
+                    const outName = `${Date.now()}-ai_processed.webp`;
+                    const outPath = path.resolve('uploads', outName);
+                    await fs.promises.writeFile(outPath, processedImage);
+                    publicImageUrl = `${publicBase.replace(/\/$/, '')}/uploads/${outName}`;
                 }
-                // Cache local result
-                if (cacheKeyBase && local.text) {
-                    await cacheService.set(`${cacheKeyBase}:local`, { engine: 'local', text: local.text }, 7*24*3600);
-                }
-            } else if (selectedEngine === 'local') {
-                log.warn('Local OCR requested but image is not in backend uploads; skipping to Vision');
+            } else {
+                // When skipping enhancement, prefer original URL so the model sees exactly ML Kit output
+                publicImageUrl = imageUrl;
             }
+        } catch (e) {
+            log.warn('Could not build publicImageUrl for AI vision', { error: e.message });
         }
 
-        if (!finalText && (selectedEngine === 'vision' || selectedEngine === 'auto')) {
-            // Prepare request for Google Vision - use processed buffer
-            const request = { image: { content: processedImage } };
-            const [result] = await client.textDetection(request);
-            const detections = result.textAnnotations;
-            finalText = detections && detections.length > 0 ? detections[0].description : "";
-            if (cacheKeyBase && finalText) {
-                await cacheService.set(`${cacheKeyBase}:vision`, { engine: 'vision', text: finalText }, 14*24*3600);
-            }
+        // 2) Unified AI directly from processed image (OCR+parsing in one step). No OCR fallbacks.
+        log.info('Processing receipt with AI from image');
+        const aiResult = await processReceiptWithAIFromImage(processedImage, locale, publicImageUrl);
+        if (!aiResult.success) {
+            return { success: false, error: aiResult.error || 'AI image pipeline failed' };
         }
-
-        // Also cache auto decision
-        if (cacheKeyBase && engine === 'auto' && finalText) {
-            await cacheService.set(`${cacheKeyBase}:auto`, { engine: 'auto', text: finalText }, 14*24*3600);
-        }
-
-        return finalText;
-    } catch (err) {
-        log.error("Error en OCR:", err);
-        return "";
-    }
-}
-
-export async function extractReceiptData(imageUrl, locale = 'en') {
-    try {
-        const rawText = await extractTextFromImage(imageUrl);
-
-        if (!rawText) {
-            return { success: false, error: "No se pudo extraer texto de la imagen" };
-        }
-
-        // Usar IA unificada para procesar todo el recibo de una vez
-        log.info("Processing receipt with unified AI", { textLength: rawText.length });
-        const aiResult = await processReceiptWithAI(rawText, locale);
 
         if (aiResult.success && aiResult.data) {
             // IA procesó exitosamente el recibo
@@ -227,9 +146,10 @@ export async function extractReceiptData(imageUrl, locale = 'en') {
 
             const aiExtracted = {
                 success: true,
-                rawText,
+                rawText: '',
                 merchantName: aiData.merchantName,
                 purchaseDate: aiData.purchaseDate,
+                purchaseDateRaw: aiData.purchaseDateRaw,
                 items: aiData.products || [],
                 totals: aiData.totals || {},
                 currency: aiData.currency || 'USD',
@@ -239,7 +159,7 @@ export async function extractReceiptData(imageUrl, locale = 'en') {
                 vatInfo: cleanedVatInfo,
                 discountInfo: aiData.discountInfo,
                 country: aiData.country,
-                extractionMethod: 'ai-unified'
+                extractionMethod: 'ai-unified-image'
             };
 
             // Aplicar validación y corrección
@@ -249,27 +169,6 @@ export async function extractReceiptData(imageUrl, locale = 'en') {
             });
 
             return validateAndCorrectReceiptData(aiExtracted);
-        } else {
-            // Fallback al parser básico si la IA falla
-            log.warn("AI processing failed, falling back to basic parser", {
-                error: aiResult.error
-            });
-
-            const basicData = parseReceiptText(rawText);
-
-            const basicExtracted = {
-                success: true,
-                rawText,
-                merchantName: basicData.merchantName,
-                purchaseDate: basicData.purchaseDate,
-                items: basicData.items,
-                totals: basicData.totals,
-                currency: basicData.currency,
-                extractionMethod: 'regex-fallback'
-            };
-
-            // Aplicar validación también al parser básico
-            return validateAndCorrectReceiptData(basicExtracted);
         }
     } catch (error) {
         log.error("Error extrayendo datos del recibo:", error);

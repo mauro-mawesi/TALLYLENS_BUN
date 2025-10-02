@@ -2,6 +2,7 @@ import { I18n } from 'i18n';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { parse } from 'accept-language-parser';
+import logger from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,13 +15,13 @@ const i18n = new I18n({
     updateFiles: false,
     objectNotation: true,
     logDebugFn: function (msg) {
-        console.log('i18n debug', msg);
+        logger.info('i18n debug', msg);
     },
     logWarnFn: function (msg) {
-        console.warn('i18n warn', msg);
+        logger.warn('i18n warn', msg);
     },
     logErrorFn: function (msg) {
-        console.error('i18n error', msg);
+        logger.error('i18n error', msg);
     },
     api: {
         __: 't',  // function name for translate

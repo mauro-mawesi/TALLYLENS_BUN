@@ -1,7 +1,7 @@
 import Product, { normalizeProductName } from '../models/Product.js';
 import ReceiptItem from '../models/ReceiptItem.js';
 import { log } from '../utils/logger.js';
-import { categorizeProduct, translateAndNormalizeProductName } from '../services/categorizationService.js';
+import { categorizeProduct } from '../services/categorizationService.js';
 import { mapUnitToInternal } from '../utils/categoryMapper.js';
 import { Op } from 'sequelize';
 
@@ -12,25 +12,30 @@ export async function processReceiptItems(receiptId, items, currency = 'USD', tr
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
 
-            // Si el producto ya viene de la IA (traducido), no traducir de nuevo
-            let translatedName = item.name;
+            // With the updated vision prompt, items already come normalized in English
+            const translatedName = item.name;
 
-            // Solo traducir si parece que no está en español o no está normalizado
-            const needsTranslation = /[^a-záéíóúñü\s\d]/i.test(item.name) ||
-                                    item.name.toLowerCase().includes('brand') ||
-                                    item.name.toLowerCase().includes('ltd') ||
-                                    item.name.includes('®') ||
-                                    item.name.includes('™');
-
-            if (needsTranslation) {
-                translatedName = await translateAndNormalizeProductName(item.name);
+            // Prefer category provided by AI; fallback to categorizeProduct only if missing/invalid
+            const validCategories = ['food', 'beverages', 'cleaning', 'personal_care', 'pharmacy', 'transport', 'fuel', 'others'];
+            let productCategory = (typeof item.category === 'string') ? item.category.toLowerCase().trim() : null;
+            if (!validCategories.includes(productCategory)) {
+                // Fallback categorization (1 call) only if category missing or invalid
+                productCategory = await categorizeProduct(translatedName, locale);
+                log.debug('Product category inferred via AI fallback', {
+                    name: translatedName,
+                    category: productCategory
+                });
+            } else {
+                log.debug('Product category provided by AI used', {
+                    name: translatedName,
+                    category: productCategory
+                });
             }
 
-            const productCategory = await categorizeProduct(translatedName, locale);
-
-            // Find or create product with translated name
+            // Find or create product with display name uppercased
+            const displayName = translatedName ? translatedName.toUpperCase() : translatedName;
             const { product, created } = await Product.findOrCreateByName(
-                translatedName,
+                displayName,
                 {
                     category: productCategory,
                     unit: mapUnitToInternal(detectUnit(translatedName)) || 'unit'
@@ -51,7 +56,7 @@ export async function processReceiptItems(receiptId, items, currency = 'USD', tr
             const receiptItem = await ReceiptItem.create({
                 receiptId,
                 productId: product.id,
-                originalText: item.originalText || item.name,
+                originalText: ((item.originalText || item.name || '') + '').toUpperCase(),
                 quantity: item.quantity || 1,
                 unitPrice: item.unitPrice,
                 totalPrice: item.totalPrice || (item.unitPrice * (item.quantity || 1)),

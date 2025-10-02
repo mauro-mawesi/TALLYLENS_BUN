@@ -16,7 +16,9 @@ const __dirname = path.dirname(__filename);
 
 // Configuration
 const UPLOADS_DIR = 'uploads';
-const BASE_URL = 'http://172.28.18.9:3000/uploads';
+// Prefer public base URL so AI provider can fetch the image (e.g., via Cloudflare Tunnel)
+const PUBLIC_BASE = process.env.PUBLIC_BASE_URL || 'https://api.tallylens.app';
+const BASE_URL = `${PUBLIC_BASE.replace(/\/$/, '')}/uploads`;
 const DEFAULT_USER_ID = 'eac1ccc7-3daa-4034-b0a7-06f885a0766b'; // Your user ID
 const DEFAULT_LOCALE = 'es';
 
