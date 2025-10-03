@@ -79,6 +79,20 @@ router.get('/', [
 
 /**
  * @swagger
+ * /api/receipts/stats:
+ *   get:
+ *     summary: Get receipt statistics
+ *     tags: [Receipts]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/stats', [
+    query('days').optional().isInt({ min: 1, max: 365 }),
+    validate
+], receiptsController.getReceiptStats);
+
+/**
+ * @swagger
  * /api/receipts/{id}:
  *   get:
  *     summary: Get receipt by ID with items
@@ -174,19 +188,5 @@ router.patch('/:receiptId/items/:itemId', [
     body('isVerified').optional().isBoolean(),
     validate
 ], receiptsController.updateReceiptItem);
-
-/**
- * @swagger
- * /api/receipts/stats:
- *   get:
- *     summary: Get receipt statistics
- *     tags: [Receipts]
- *     security:
- *       - bearerAuth: []
- */
-router.get('/stats', [
-    query('days').optional().isInt({ min: 1, max: 365 }),
-    validate
-], receiptsController.getReceiptStats);
 
 export default router;

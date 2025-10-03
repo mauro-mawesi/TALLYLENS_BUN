@@ -16,7 +16,9 @@
     "logout_all_devices_success": "Succesvol uitgelogd van alle apparaten",
     "password_changed_success": "Wachtwoord succesvol gewijzigd",
     "email_verified_success": "E-mail succesvol geverifieerd",
-    "language_updated_success": "Taalvoorkeur succesvol bijgewerkt"
+    "language_updated_success": "Taalvoorkeur succesvol bijgewerkt",
+    "profile_photo_updated_success": "Profielfoto succesvol bijgewerkt",
+    "profile_photo_deleted_success": "Profielfoto succesvol verwijderd"
   },
   "receipts": {
     "created_successfully": "Kassabon succesvol aangemaakt",
@@ -80,6 +82,43 @@
   },
   "analytics": {
     "insufficient_data": "Onvoldoende aankoopgegevens voor analyse. Minimaal 2 aankopen nodig."
+  },
+  "badges": {
+    "badge_digitizer_1": "Eerste Bonnetje",
+    "badge_digitizer_10": "10 Bonnetjes",
+    "badge_digitizer_50": "50 Bonnetjes",
+    "badge_digitizer_100": "100 Bonnetjes",
+    "badge_digitizer_500": "500 Bonnetjes",
+    "badge_collector_10": "10 Producten Gevolgd",
+    "badge_collector_50": "50 Producten Gevolgd",
+    "badge_collector_100": "100 Producten Gevolgd",
+    "badge_collector_250": "250 Producten Gevolgd",
+    "badge_collector_500": "500 Producten Gevolgd",
+    "badge_explorer_3": "3 Winkels Bezocht",
+    "badge_explorer_5": "5 Winkels Bezocht",
+    "badge_explorer_10": "10 Winkels Bezocht",
+    "badge_explorer_20": "20 Winkels Bezocht",
+    "badge_explorer_50": "50 Winkels Bezocht",
+    "badge_saver_10": "€10 Bespaard",
+    "badge_saver_50": "€50 Bespaard",
+    "badge_saver_100": "€100 Bespaard",
+    "badge_saver_250": "€250 Bespaard",
+    "badge_saver_500": "€500 Bespaard",
+    "badge_veteran_7": "7 Dagen met TallyLens",
+    "badge_veteran_30": "30 Dagen met TallyLens",
+    "badge_veteran_90": "90 Dagen met TallyLens",
+    "badge_veteran_180": "180 Dagen met TallyLens",
+    "badge_veteran_365": "1 Jaar met TallyLens",
+    "badge_streak_3": "3-Daagse Reeks",
+    "badge_streak_7": "7-Daagse Reeks",
+    "badge_streak_14": "14-Daagse Reeks",
+    "badge_streak_30": "30-Daagse Reeks",
+    "badge_streak_60": "60-Daagse Reeks",
+    "badge_tracker_100": "€100 Gevolgd",
+    "badge_tracker_500": "€500 Gevolgd",
+    "badge_tracker_1000": "€1,000 Gevolgd",
+    "badge_tracker_5000": "€5,000 Gevolgd",
+    "badge_tracker_10000": "€10,000 Gevolgd"
   },
   "categories": {
     "uncategorized": "Ongecategoriseerd"

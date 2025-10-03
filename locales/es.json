@@ -16,7 +16,9 @@
     "logout_all_devices_success": "Sesión cerrada en todos los dispositivos exitosamente",
     "password_changed_success": "Contraseña cambiada exitosamente",
     "email_verified_success": "Email verificado exitosamente",
-    "language_updated_success": "Preferencia de idioma actualizada exitosamente"
+    "language_updated_success": "Preferencia de idioma actualizada exitosamente",
+    "profile_photo_updated_success": "Foto de perfil actualizada exitosamente",
+    "profile_photo_deleted_success": "Foto de perfil eliminada exitosamente"
   },
   "receipts": {
     "created_successfully": "Recibo creado exitosamente",
@@ -80,6 +82,43 @@
   },
   "analytics": {
     "insufficient_data": "Datos de compra insuficientes para el análisis. Se necesitan al menos 2 compras."
+  },
+  "badges": {
+    "badge_digitizer_1": "Primer Recibo",
+    "badge_digitizer_10": "10 Recibos",
+    "badge_digitizer_50": "50 Recibos",
+    "badge_digitizer_100": "100 Recibos",
+    "badge_digitizer_500": "500 Recibos",
+    "badge_collector_10": "10 Productos Rastreados",
+    "badge_collector_50": "50 Productos Rastreados",
+    "badge_collector_100": "100 Productos Rastreados",
+    "badge_collector_250": "250 Productos Rastreados",
+    "badge_collector_500": "500 Productos Rastreados",
+    "badge_explorer_3": "3 Comercios Visitados",
+    "badge_explorer_5": "5 Comercios Visitados",
+    "badge_explorer_10": "10 Comercios Visitados",
+    "badge_explorer_20": "20 Comercios Visitados",
+    "badge_explorer_50": "50 Comercios Visitados",
+    "badge_saver_10": "$10 Ahorrados",
+    "badge_saver_50": "$50 Ahorrados",
+    "badge_saver_100": "$100 Ahorrados",
+    "badge_saver_250": "$250 Ahorrados",
+    "badge_saver_500": "$500 Ahorrados",
+    "badge_veteran_7": "7 Días Usando TallyLens",
+    "badge_veteran_30": "30 Días Usando TallyLens",
+    "badge_veteran_90": "90 Días Usando TallyLens",
+    "badge_veteran_180": "180 Días Usando TallyLens",
+    "badge_veteran_365": "1 Año Usando TallyLens",
+    "badge_streak_3": "Racha de 3 Días",
+    "badge_streak_7": "Racha de 7 Días",
+    "badge_streak_14": "Racha de 14 Días",
+    "badge_streak_30": "Racha de 30 Días",
+    "badge_streak_60": "Racha de 60 Días",
+    "badge_tracker_100": "$100 Rastreados",
+    "badge_tracker_500": "$500 Rastreados",
+    "badge_tracker_1000": "$1,000 Rastreados",
+    "badge_tracker_5000": "$5,000 Rastreados",
+    "badge_tracker_10000": "$10,000 Rastreados"
   },
   "categories": {
     "uncategorized": "Sin categoría"

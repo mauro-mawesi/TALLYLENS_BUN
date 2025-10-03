@@ -341,6 +341,46 @@ export const getSpendingAnalysis = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get total spending by month (aggregated across categories)
+ */
+export const getMonthlyTotals = asyncHandler(async (req, res) => {
+    const { months = 4 } = req.query;
+    const userId = req.user.id;
+
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - parseInt(months));
+
+    const monthly = await ReceiptItem.findAll({
+        include: [{
+            model: Receipt,
+            as: 'receipt',
+            where: {
+                userId,
+                purchaseDate: { [Op.gte]: startDate }
+            },
+            attributes: []
+        }],
+        attributes: [
+            [Sequelize.fn('DATE_TRUNC', 'month', Sequelize.col('receipt.purchase_date')), 'month'],
+            [Sequelize.fn('SUM', Sequelize.col('total_price')), 'totalSpent']
+        ],
+        group: [Sequelize.fn('DATE_TRUNC', 'month', Sequelize.col('receipt.purchase_date'))],
+        order: [[Sequelize.fn('DATE_TRUNC', 'month', Sequelize.col('receipt.purchase_date')), 'ASC']],
+        raw: true
+    });
+
+    res.json({
+        status: 'success',
+        data: {
+            monthlyTotals: monthly.map(m => ({
+                month: m.month,
+                totalSpent: parseFloat(m.totalSpent)
+            }))
+        }
+    });
+});
+
+/**
  * Get intelligent alerts and recommendations
  */
 export const getSmartAlerts = asyncHandler(async (req, res) => {

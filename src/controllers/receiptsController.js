@@ -522,7 +522,8 @@ export const getReceiptStats = asyncHandler(async (req, res) => {
             [sequelize.fn('AVG', sequelize.col('amount')), 'averageAmount']
         ],
         group: ['category'],
-        order: [[sequelize.literal('total_amount'), 'DESC']]
+        // Order by the alias defined in attributes ('totalAmount')
+        order: [[sequelize.col('totalAmount'), 'DESC']]
     });
 
     const totalStats = await Receipt.findOne({
@@ -537,11 +538,44 @@ export const getReceiptStats = asyncHandler(async (req, res) => {
         ]
     });
 
+    // Count unique products from receipt items using raw query for better performance
+    const uniqueProductsResult = await sequelize.query(`
+        SELECT COUNT(DISTINCT ri.product_id) as "uniqueProducts"
+        FROM receipt_items ri
+        INNER JOIN receipts r ON ri.receipt_id = r.id
+        WHERE r.user_id = :userId
+        AND r.created_at >= :dateFrom
+        AND ri.product_id IS NOT NULL
+    `, {
+        replacements: { userId, dateFrom },
+        type: sequelize.QueryTypes.SELECT
+    });
+
+    const uniqueProducts = parseInt(uniqueProductsResult[0]?.uniqueProducts || 0);
+
+    // Count unique merchants
+    const uniqueMerchantsResult = await sequelize.query(`
+        SELECT COUNT(DISTINCT merchant_name) as "uniqueMerchants"
+        FROM receipts
+        WHERE user_id = :userId
+        AND created_at >= :dateFrom
+        AND merchant_name IS NOT NULL
+    `, {
+        replacements: { userId, dateFrom },
+        type: sequelize.QueryTypes.SELECT
+    });
+
+    const uniqueMerchants = parseInt(uniqueMerchantsResult[0]?.uniqueMerchants || 0);
+
     res.json({
         status: 'success',
         data: {
             byCategory: stats,
-            totals: totalStats,
+            totals: {
+                ...totalStats?.dataValues,
+                uniqueProducts,
+                uniqueMerchants
+            },
             period: `${days} days`
         }
     });

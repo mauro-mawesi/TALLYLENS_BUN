@@ -61,6 +61,16 @@ const User = sequelize.define('User', {
         type: DataTypes.STRING,
         allowNull: true
     },
+    profileImageUrl: {
+        field: 'profile_image_url',
+        type: DataTypes.TEXT,
+        allowNull: true,
+        validate: {
+            isUrl: {
+                msg: 'Profile image URL must be a valid URL'
+            }
+        }
+    },
     role: {
         type: DataTypes.ENUM('user', 'admin', 'moderator'),
         defaultValue: 'user',

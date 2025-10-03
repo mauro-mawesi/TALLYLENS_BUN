@@ -1,6 +1,7 @@
 import authService from '../services/authService.js';
 import { asyncHandler } from '../utils/errors.js';
 import { log } from '../utils/logger.js';
+import { calculateUserBadges, getBadgeDisplayInfo } from '../services/badgeService.js';
 
 export const register = asyncHandler(async (req, res) => {
     const userData = {
@@ -150,5 +151,62 @@ export const updateLanguagePreference = asyncHandler(async (req, res) => {
         data: {
             preferredLanguage: language
         }
+    });
+});
+
+export const getUserBadges = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+
+    const badges = await calculateUserBadges(userId);
+
+    // Add localized display information
+    const localizedBadges = badges.map(badge => getBadgeDisplayInfo(badge, req.t));
+
+    res.json({
+        status: 'success',
+        data: {
+            badges: localizedBadges,
+            total: badges.length
+        }
+    });
+});
+
+export const updateProfilePhoto = asyncHandler(async (req, res) => {
+    const { imageUrl } = req.body;
+    const userId = req.user.id;
+
+    if (!imageUrl) {
+        return res.status(400).json({
+            status: 'error',
+            message: req.t('validation.required_field', { field: 'imageUrl' })
+        });
+    }
+
+    await req.user.update({ profileImageUrl: imageUrl });
+
+    log.info('Profile photo updated', {
+        userId,
+        imageUrl
+    });
+
+    res.json({
+        status: 'success',
+        message: req.t('auth.profile_photo_updated_success'),
+        data: {
+            profileImageUrl: imageUrl
+        }
+    });
+});
+
+export const deleteProfilePhoto = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+
+    await req.user.update({ profileImageUrl: null });
+
+    log.info('Profile photo deleted', { userId });
+
+    res.json({
+        status: 'success',
+        message: req.t('auth.profile_photo_deleted_success')
     });
 });

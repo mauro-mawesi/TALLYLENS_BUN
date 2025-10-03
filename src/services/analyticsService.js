@@ -34,7 +34,8 @@ export async function getUserPurchasePatterns(userId, options = {}) {
                 [sequelize.fn('MAX', sequelize.col('amount')), 'maxAmount']
             ],
             group: ['category'],
-            order: [[sequelize.literal('total_amount'), 'DESC']]
+            // Order by the alias defined above ('totalAmount')
+            order: [[sequelize.col('totalAmount'), 'DESC']]
         });
 
         patterns.categorySpending = categorySpending;
@@ -96,7 +97,8 @@ export async function getUserPurchasePatterns(userId, options = {}) {
                 ],
                 group: ['merchantName'],
                 having: sequelize.where(sequelize.fn('COUNT', sequelize.col('id')), '>=', 2),
-                order: [[sequelize.literal('visit_count'), 'DESC']],
+                // Order by the alias defined above ('visitCount')
+                order: [[sequelize.col('visitCount'), 'DESC']],
                 limit: 15
             });
 
@@ -119,7 +121,7 @@ export async function getUserPurchasePatterns(userId, options = {}) {
                     [sequelize.fn('AVG', sequelize.col('amount')), 'averageAmount']
                 ],
                 group: ['paymentMethod', 'cardType'],
-                order: [[sequelize.literal('usage_count'), 'DESC']]
+                order: [[sequelize.col('usageCount'), 'DESC']]
             });
 
             patterns.paymentMethods = paymentMethods;
@@ -178,32 +180,68 @@ export async function getUserPurchasePatterns(userId, options = {}) {
             patterns.categoryPreferences = categoryPreferences;
         }
 
-        // 8. Discount usage analysis
-        const discountAnalysis = await Receipt.findAll({
-            where: {
-                userId,
-                createdAt: { [Op.gte]: dateFrom },
-                discountInfo: { [Op.not]: null }
-            },
-            attributes: [
-                [sequelize.literal("discount_info->>'type'"), 'discountType'],
-                [sequelize.fn('COUNT', sequelize.col('id')), 'usageCount'],
-                [sequelize.fn('SUM', sequelize.cast(sequelize.literal("discount_info->>'amount'"), 'DECIMAL')), 'totalSavings'],
-                [sequelize.fn('AVG', sequelize.cast(sequelize.literal("discount_info->>'amount'"), 'DECIMAL')), 'averageSavings']
-            ],
-            group: [sequelize.literal("discount_info->>'type'")],
-            order: [[sequelize.literal('total_savings'), 'DESC']]
+        // 8. Discount usage analysis (using raw query for better JSONB handling)
+        const discountAnalysis = await sequelize.query(`
+            SELECT
+                discount_info->>'type' as "discountType",
+                COUNT(id) as "usageCount",
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN jsonb_typeof(discount_info->'amount') = 'number'
+                            THEN (discount_info->>'amount')::DECIMAL
+                            ELSE 0
+                        END
+                    ), 0
+                ) as "totalSavings",
+                COALESCE(
+                    AVG(
+                        CASE
+                            WHEN jsonb_typeof(discount_info->'amount') = 'number'
+                            THEN (discount_info->>'amount')::DECIMAL
+                            ELSE NULL
+                        END
+                    ), 0
+                ) as "averageSavings"
+            FROM receipts
+            WHERE user_id = :userId
+                AND created_at >= :dateFrom
+                AND discount_info IS NOT NULL
+                AND discount_info->>'type' IS NOT NULL
+            GROUP BY discount_info->>'type'
+            ORDER BY "totalSavings" DESC
+        `, {
+            replacements: { userId, dateFrom },
+            type: sequelize.QueryTypes.SELECT
         });
 
         patterns.discountAnalysis = discountAnalysis;
 
-        // 9. VAT analysis by country
+        // 9. VAT analysis by country (with proper JSONB nested access)
         const vatAnalysis = await sequelize.query(`
             SELECT
                 country,
                 COUNT(*) as receipt_count,
-                AVG(CAST(vat_info->>'21' AS DECIMAL)) as avg_vat_21,
-                AVG(CAST(vat_info->>'9' AS DECIMAL)) as avg_vat_9,
+                COALESCE(
+                    AVG(
+                        CASE
+                            WHEN jsonb_typeof(vat_info->'21') = 'object'
+                                AND vat_info->'21'->>'amount' IS NOT NULL
+                            THEN (vat_info->'21'->>'amount')::DECIMAL
+                            ELSE NULL
+                        END
+                    ), 0
+                ) as avg_vat_21,
+                COALESCE(
+                    AVG(
+                        CASE
+                            WHEN jsonb_typeof(vat_info->'9') = 'object'
+                                AND vat_info->'9'->>'amount' IS NOT NULL
+                            THEN (vat_info->'9'->>'amount')::DECIMAL
+                            ELSE NULL
+                        END
+                    ), 0
+                ) as avg_vat_9,
                 SUM(amount) as total_amount
             FROM receipts
             WHERE user_id = :userId

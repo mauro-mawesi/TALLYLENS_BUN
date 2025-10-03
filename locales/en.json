@@ -16,7 +16,9 @@
     "logout_all_devices_success": "Logged out from all devices successfully",
     "password_changed_success": "Password changed successfully",
     "email_verified_success": "Email verified successfully",
-    "language_updated_success": "Language preference updated successfully"
+    "language_updated_success": "Language preference updated successfully",
+    "profile_photo_updated_success": "Profile photo updated successfully",
+    "profile_photo_deleted_success": "Profile photo deleted successfully"
   },
   "receipts": {
     "created_successfully": "Receipt created successfully",
@@ -80,6 +82,43 @@
   },
   "analytics": {
     "insufficient_data": "Insufficient purchase data for analysis. Need at least 2 purchases."
+  },
+  "badges": {
+    "badge_digitizer_1": "First Receipt",
+    "badge_digitizer_10": "10 Receipts",
+    "badge_digitizer_50": "50 Receipts",
+    "badge_digitizer_100": "100 Receipts",
+    "badge_digitizer_500": "500 Receipts",
+    "badge_collector_10": "10 Products Tracked",
+    "badge_collector_50": "50 Products Tracked",
+    "badge_collector_100": "100 Products Tracked",
+    "badge_collector_250": "250 Products Tracked",
+    "badge_collector_500": "500 Products Tracked",
+    "badge_explorer_3": "3 Merchants Visited",
+    "badge_explorer_5": "5 Merchants Visited",
+    "badge_explorer_10": "10 Merchants Visited",
+    "badge_explorer_20": "20 Merchants Visited",
+    "badge_explorer_50": "50 Merchants Visited",
+    "badge_saver_10": "$10 Saved",
+    "badge_saver_50": "$50 Saved",
+    "badge_saver_100": "$100 Saved",
+    "badge_saver_250": "$250 Saved",
+    "badge_saver_500": "$500 Saved",
+    "badge_veteran_7": "7 Days Using TallyLens",
+    "badge_veteran_30": "30 Days Using TallyLens",
+    "badge_veteran_90": "90 Days Using TallyLens",
+    "badge_veteran_180": "180 Days Using TallyLens",
+    "badge_veteran_365": "1 Year Using TallyLens",
+    "badge_streak_3": "3-Day Streak",
+    "badge_streak_7": "7-Day Streak",
+    "badge_streak_14": "14-Day Streak",
+    "badge_streak_30": "30-Day Streak",
+    "badge_streak_60": "60-Day Streak",
+    "badge_tracker_100": "$100 Tracked",
+    "badge_tracker_500": "$500 Tracked",
+    "badge_tracker_1000": "$1,000 Tracked",
+    "badge_tracker_5000": "$5,000 Tracked",
+    "badge_tracker_10000": "$10,000 Tracked"
   },
   "categories": {
     "uncategorized": "Uncategorized"

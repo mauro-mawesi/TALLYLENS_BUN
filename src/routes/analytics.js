@@ -231,6 +231,34 @@ router.get('/spending-analysis', [
 
 /**
  * @swagger
+ * /api/analytics/monthly-totals:
+ *   get:
+ *     summary: Get total spending per month (aggregated)
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: months
+ *         schema:
+ *           type: integer
+ *           default: 4
+ *           minimum: 1
+ *           maximum: 24
+ *     responses:
+ *       200:
+ *         description: Monthly totals retrieved successfully
+ */
+router.get('/monthly-totals', [
+    query('months')
+        .optional()
+        .isInt({ min: 1, max: 24 })
+        .withMessage('Months must be between 1 and 24'),
+    validate
+], analyticsController.getMonthlyTotals);
+
+/**
+ * @swagger
  * /api/analytics/smart-alerts:
  *   get:
  *     summary: Get intelligent alerts and recommendations

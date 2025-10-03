@@ -11,7 +11,10 @@ import {
     resetPassword,
     verifyEmail,
     getMe,
-    updateLanguagePreference
+    updateLanguagePreference,
+    getUserBadges,
+    updateProfilePhoto,
+    deleteProfilePhoto
 } from '../controllers/authController.js';
 import { authenticate } from '../middlewares/auth.js';
 import { languageDetectorAuth } from '../config/i18n.js';
@@ -449,5 +452,121 @@ router.put('/language', [
         .withMessage('Language must be one of: en, es, nl'),
     validate
 ], updateLanguagePreference);
+
+/**
+ * @swagger
+ * /api/auth/badges:
+ *   get:
+ *     summary: Get user badges and achievements
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User badges retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     badges:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           type:
+ *                             type: string
+ *                           level:
+ *                             type: string
+ *                             enum: [bronze, silver, gold, platinum, diamond]
+ *                           icon:
+ *                             type: string
+ *                           title:
+ *                             type: string
+ *                           description:
+ *                             type: string
+ *                           currentValue:
+ *                             type: number
+ *                           threshold:
+ *                             type: number
+ *                           nextThreshold:
+ *                             type: number
+ *                           progress:
+ *                             type: number
+ *                           earned:
+ *                             type: boolean
+ *                     total:
+ *                       type: number
+ */
+router.get('/badges', authenticate, languageDetectorAuth, getUserBadges);
+
+/**
+ * @swagger
+ * /api/auth/profile/photo:
+ *   put:
+ *     summary: Update user profile photo
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - imageUrl
+ *             properties:
+ *               imageUrl:
+ *                 type: string
+ *                 format: uri
+ *                 description: URL of the uploaded profile image
+ *     responses:
+ *       200:
+ *         description: Profile photo updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     profileImageUrl:
+ *                       type: string
+ */
+router.put('/profile/photo', [
+    authenticate,
+    languageDetectorAuth,
+    body('imageUrl')
+        .isURL()
+        .withMessage('Profile image URL must be a valid URL'),
+    validate
+], updateProfilePhoto);
+
+/**
+ * @swagger
+ * /api/auth/profile/photo:
+ *   delete:
+ *     summary: Delete user profile photo
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile photo deleted successfully
+ */
+router.delete('/profile/photo', authenticate, languageDetectorAuth, deleteProfilePhoto);
 
 export default router;
