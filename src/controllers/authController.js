@@ -2,6 +2,7 @@ import authService from '../services/authService.js';
 import { asyncHandler } from '../utils/errors.js';
 import { log } from '../utils/logger.js';
 import { calculateUserBadges, getBadgeDisplayInfo } from '../services/badgeService.js';
+import { addSignedUrlsToProfile, generateSignedUrl } from '../utils/urlSigner.js';
 
 export const register = asyncHandler(async (req, res) => {
     const userData = {
@@ -15,6 +16,11 @@ export const register = asyncHandler(async (req, res) => {
     };
 
     const result = await authService.register(userData);
+
+    // Add signed URLs to user profile (24 hours expiration)
+    if (result.user) {
+        result.user = addSignedUrlsToProfile(result.user, 86400);
+    }
 
     res.status(201).json({
         status: 'success',
@@ -33,6 +39,11 @@ export const login = asyncHandler(async (req, res) => {
 
     const result = await authService.login(req.body, ipAddress, deviceInfo);
 
+    // Add signed URLs to user profile (24 hours expiration)
+    if (result.user) {
+        result.user = addSignedUrlsToProfile(result.user, 86400);
+    }
+
     res.json({
         status: 'success',
         message: req.t('auth.login_success'),
@@ -49,7 +60,18 @@ export const refreshToken = asyncHandler(async (req, res) => {
         mobile: req.get('sec-ch-ua-mobile')
     };
 
+    log.info('Refresh token request received', {
+        ip: ipAddress,
+        tokenPrefix: refreshToken?.substring(0, 8),
+        userAgent: deviceInfo.userAgent
+    });
+
     const result = await authService.refreshAccessToken(refreshToken, ipAddress, deviceInfo);
+
+    // Add signed URLs to user profile (24 hours expiration)
+    if (result.user) {
+        result.user = addSignedUrlsToProfile(result.user, 86400);
+    }
 
     res.json({
         status: 'success',
@@ -124,10 +146,13 @@ export const verifyEmail = asyncHandler(async (req, res) => {
 });
 
 export const getMe = asyncHandler(async (req, res) => {
+    // Add signed URLs to user profile (24 hours expiration)
+    const userWithSignedUrls = addSignedUrlsToProfile(req.user.toJSON(), 86400);
+
     res.json({
         status: 'success',
         data: {
-            user: req.user.toJSON()
+            user: userWithSignedUrls
         }
     });
 });
@@ -189,11 +214,14 @@ export const updateProfilePhoto = asyncHandler(async (req, res) => {
         imageUrl
     });
 
+    // Generate signed URL for the profile image (24 hours expiration)
+    const signedImageUrl = generateSignedUrl(imageUrl, 86400);
+
     res.json({
         status: 'success',
         message: req.t('auth.profile_photo_updated_success'),
         data: {
-            profileImageUrl: imageUrl
+            profileImageUrl: signedImageUrl
         }
     });
 });

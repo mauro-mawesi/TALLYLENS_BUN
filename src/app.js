@@ -34,7 +34,8 @@ import imageRoutes from "./routes/imageRoutes.js";
 import healthRouter from "./routes/health.js";
 import productsRouter from "./routes/products.js";
 import analyticsRouter from "./routes/analytics.js";
-import imageEnhancementRouter from "./routes/imageEnhancement.js";
+import budgetsRouter from "./routes/budgets.js";
+import notificationsRouter from "./routes/notifications.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,11 +87,10 @@ app.use(languageDetector);
 // Rate limiting
 app.use('/api/', generalLimiter);
 
-// Static file serving
-app.use("/uploads", express.static(path.join(__dirname, "../uploads"), {
-    maxAge: '1d',
-    etag: true
-}));
+// Secure image serving with signed URLs (replaces public /uploads)
+// Images are now served via /secure/* with time-limited signed URLs
+import { validateSignedUrl, serveSecureImage } from './middlewares/imageAuth.js';
+app.use('/secure', validateSignedUrl, serveSecureImage);
 
 // API Documentation
 if (config.isDevelopment) {
@@ -105,14 +105,14 @@ app.use("/api/auth", authRouter);
 app.use("/api/receipts", receiptsRouter);
 app.use("/api/products", productsRouter);
 app.use("/api/analytics", analyticsRouter);
+app.use("/api/budgets", budgetsRouter);
+app.use("/api/notifications", notificationsRouter);
 app.use("/api/ocr", ocrRouter);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/images", imageRoutes);
 
 // Development-only routes
-if (config.isDevelopment) {
-    app.use("/api/image-enhancement", imageEnhancementRouter);
-}
+// (none currently)
 
 // Root endpoint
 app.get('/', (req, res) => {

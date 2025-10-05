@@ -1,6 +1,7 @@
 import ocrWorker from './ocrWorker.js';
 import categorizationWorker from './categorizationWorker.js';
 import cleanupWorker from './cleanupWorker.js';
+import budgetWorker from './budgetWorker.js';
 import queueService from '../services/queueService.js';
 import { log } from '../utils/logger.js';
 import config from '../config/environment.js';
@@ -10,7 +11,8 @@ class WorkerManager {
         this.workers = {
             ocr: ocrWorker,
             categorization: categorizationWorker,
-            cleanup: cleanupWorker
+            cleanup: cleanupWorker,
+            budget: budgetWorker
         };
         this.isRunning = false;
     }
@@ -167,6 +169,8 @@ class WorkerManager {
                 return await queueService.addCategorizationJob(data.receiptId, data.extractedText, options.priority);
             case 'cleanup':
                 return await queueService.addCleanupJob(data.type, data.options);
+            case 'budget':
+                return await queueService.queues.budget.add(jobType, data, options);
             default:
                 throw new Error(`Unknown queue: ${queueName}`);
         }

@@ -5,7 +5,7 @@ import { categorizeProduct } from '../services/categorizationService.js';
 import { mapUnitToInternal } from '../utils/categoryMapper.js';
 import { Op } from 'sequelize';
 
-export async function processReceiptItems(receiptId, items, currency = 'USD', transaction = null, locale = 'en') {
+export async function processReceiptItems(receiptId, userId, items, currency = 'USD', transaction = null, locale = 'en') {
     const processedItems = [];
 
     try {
@@ -13,7 +13,12 @@ export async function processReceiptItems(receiptId, items, currency = 'USD', tr
             const item = items[i];
 
             // With the updated vision prompt, items already come normalized in English
-            const translatedName = item.name;
+            const translatedName = (item?.name ?? item?.originalText ?? '').toString().trim();
+            if (!translatedName) {
+                // Skip empty items gracefully
+                log.warn('Skipping item without name', { receiptId, index: i });
+                continue;
+            }
 
             // Prefer category provided by AI; fallback to categorizeProduct only if missing/invalid
             const validCategories = ['food', 'beverages', 'cleaning', 'personal_care', 'pharmacy', 'transport', 'fuel', 'others'];
@@ -32,9 +37,10 @@ export async function processReceiptItems(receiptId, items, currency = 'USD', tr
                 });
             }
 
-            // Find or create product with display name uppercased
+            // Find or create product with display name uppercased (scoped to user)
             const displayName = translatedName ? translatedName.toUpperCase() : translatedName;
             const { product, created } = await Product.findOrCreateByName(
+                userId,
                 displayName,
                 {
                     category: productCategory,
@@ -56,10 +62,10 @@ export async function processReceiptItems(receiptId, items, currency = 'USD', tr
             const receiptItem = await ReceiptItem.create({
                 receiptId,
                 productId: product.id,
-                originalText: ((item.originalText || item.name || '') + '').toUpperCase(),
+                originalText: ((item.originalText || item.name || translatedName || '') + '').toUpperCase(),
                 quantity: item.quantity || 1,
                 unitPrice: item.unitPrice,
-                totalPrice: item.totalPrice || (item.unitPrice * (item.quantity || 1)),
+                totalPrice: item.totalPrice || ((item.unitPrice || 0) * (item.quantity || 1)),
                 currency,
                 unit: mapUnitToInternal(detectUnit(translatedName)) || 'unit',
                 position: item.position !== undefined ? item.position : i,
@@ -113,7 +119,7 @@ export async function processReceiptItems(receiptId, items, currency = 'USD', tr
 }
 
 export function detectUnit(productName) {
-    const name = productName.toLowerCase();
+    const name = (productName ?? '').toString().toLowerCase();
 
     // Weight units
     if (name.includes('kg') || name.includes('kilo') || name.includes('kilogramo')) return 'kg';
@@ -172,13 +178,18 @@ export function calculateItemConfidence(item) {
     return Math.max(0, Math.min(1, confidence));
 }
 
-export async function mergeProducts(primaryProductId, duplicateProductId) {
+export async function mergeProducts(userId, primaryProductId, duplicateProductId) {
     try {
         const primaryProduct = await Product.findByPk(primaryProductId);
         const duplicateProduct = await Product.findByPk(duplicateProductId);
 
         if (!primaryProduct || !duplicateProduct) {
             throw new Error('One or both products not found');
+        }
+
+        // Verify both products belong to the same user
+        if (primaryProduct.userId !== userId || duplicateProduct.userId !== userId) {
+            throw new Error('Products do not belong to this user');
         }
 
         // Update all receipt items to use primary product
@@ -233,15 +244,21 @@ export async function mergeProducts(primaryProductId, duplicateProductId) {
     }
 }
 
-export async function findPotentialDuplicates(productId) {
+export async function findPotentialDuplicates(userId, productId) {
     const product = await Product.findByPk(productId);
     if (!product) {
         throw new Error('Product not found');
     }
 
-    // Find products with similar normalized names
+    // Verify product belongs to user
+    if (product.userId !== userId) {
+        throw new Error('Product does not belong to this user');
+    }
+
+    // Find products with similar normalized names (only from same user)
     const similarProducts = await Product.findAll({
         where: {
+            userId,
             id: { [Op.ne]: productId },
             normalizedName: {
                 [Op.iLike]: `%${product.normalizedName.substring(0, Math.min(10, product.normalizedName.length))}%`

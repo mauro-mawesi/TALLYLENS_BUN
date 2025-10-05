@@ -136,5 +136,76 @@
   "recommendations": {
     "frequently_bought_together": "Los clientes que compran {{productA}} también compran {{productB}}",
     "seasonal_trend": "{{product}} se compra frecuentemente en {{month}}"
+  },
+  "budgets": {
+    "created_successfully": "Presupuesto creado exitosamente",
+    "updated_successfully": "Presupuesto actualizado exitosamente",
+    "deleted_successfully": "Presupuesto eliminado exitosamente",
+    "duplicated_successfully": "Presupuesto duplicado exitosamente",
+    "not_found": "Presupuesto no encontrado",
+    "already_exists": "Ya existe un presupuesto para esta categoría y período",
+    "end_date_before_start": "La fecha final debe ser posterior a la fecha inicial",
+    "invalid_period": "Período de presupuesto inválido",
+    "invalid_threshold": "Los umbrales de alerta deben ser números positivos",
+    "rollover_created": "Traspaso de presupuesto creado exitosamente",
+    "no_rollover": "No hay presupuesto restante para traspasar"
+  },
+  "budget_alerts": {
+    "threshold_title": "Alerta de Presupuesto: {{budgetName}}",
+    "threshold_message": "Has gastado {{percentage}}% ({{currency}}{{currentSpending}}) de tu presupuesto de {{currency}}{{budgetAmount}}",
+    "threshold_warning": "Te estás acercando al límite de tu presupuesto",
+    "exceeded_title": "Presupuesto Excedido: {{budgetName}}",
+    "exceeded_message": "Has excedido tu presupuesto en un {{percentage}}%",
+    "predictive_title": "Advertencia de Presupuesto: {{budgetName}}",
+    "predictive_message": "A tu ritmo actual de gasto, excederás tu presupuesto para el {{projectedDate}}",
+    "predictive_suggestion": "Intenta limitar el gasto diario a {{currency}}{{recommendedDaily}} para mantenerte dentro del presupuesto",
+    "comparative_title": "Análisis de Gastos",
+    "comparative_message": "Estás gastando un {{percentage}}% más de lo habitual este período",
+    "marked_as_read": "Alerta marcada como leída",
+    "all_marked_as_read": "Todas las alertas marcadas como leídas",
+    "not_found": "Alerta no encontrada"
+  },
+  "notifications": {
+    "preferences_updated": "Preferencias de notificación actualizadas exitosamente",
+    "fcm_token_registered": "Notificaciones push registradas exitosamente",
+    "fcm_token_removed": "Notificaciones push desactivadas exitosamente",
+    "channels_updated": "Canales de notificación actualizados exitosamente",
+    "quiet_hours_updated": "Horario de silencio actualizado exitosamente",
+    "digest_settings_updated": "Configuración de resumen actualizada exitosamente",
+    "test_sent": "Notificación de prueba enviada exitosamente",
+    "fcm_not_configured": "Las notificaciones push no están configuradas en este servidor",
+    "fcm_healthy": "El servicio de notificaciones push está operativo",
+    "fcm_unhealthy": "El servicio de notificaciones push no está disponible",
+    "in_quiet_hours": "Notificación suprimida debido al horario de silencio",
+    "channel_disabled": "Este canal de notificación está desactivado en tus preferencias"
+  },
+  "digest": {
+    "weekly_subject": "Tu Resumen Semanal de Gastos",
+    "monthly_subject": "Tu Resumen Mensual de Gastos",
+    "greeting": "Hola {{name}},",
+    "summary_intro": "Aquí está tu resumen de gastos para {{period}}:",
+    "total_spent": "Total Gastado",
+    "budget_status": "Estado del Presupuesto",
+    "on_track": "En Camino",
+    "over_budget": "Sobre Presupuesto",
+    "under_budget": "Bajo Presupuesto",
+    "top_categories": "Principales Categorías de Gasto",
+    "insights_title": "Análisis y Recomendaciones",
+    "view_details": "Ver Informe Detallado",
+    "unsubscribe": "Actualizar preferencias de notificación"
+  },
+  "insights": {
+    "spending_pace_fast": "Estás gastando más rápido de lo habitual. Considera revisar tu presupuesto.",
+    "spending_pace_slow": "¡Buen trabajo! Estás gastando más lento de lo proyectado.",
+    "spending_pace_ontrack": "Tu gasto está en línea con tu presupuesto.",
+    "category_warning": "El gasto en {{category}} es un {{percentage}}% más alto de lo habitual",
+    "category_success": "Has reducido el gasto en {{category}} en un {{percentage}}%",
+    "predicted_overspend": "A este ritmo, excederás tu presupuesto para el {{date}}",
+    "predicted_underspend": "Vas en camino de tener {{currency}}{{amount}} restante",
+    "comparison_higher": "{{percentage}}% más alto que el {{period}} pasado",
+    "comparison_lower": "{{percentage}}% más bajo que el {{period}} pasado",
+    "confidence_high": "Alta confianza basada en {{count}} recibos",
+    "confidence_medium": "Confianza media basada en {{count}} recibos",
+    "confidence_low": "Baja confianza - agrega más recibos para mejores predicciones"
   }
 }

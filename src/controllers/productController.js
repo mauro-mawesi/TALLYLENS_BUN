@@ -11,8 +11,9 @@ export const getProducts = asyncHandler(async (req, res) => {
     const { category, search, limit = 20, offset = 0 } = req.query;
     const userId = req.user.id;
 
-    // Build where clause for products that the user has purchased
-    const whereClause = {};
+    // Build where clause for user's products
+    const whereClause = { userId };
+
     if (category) {
         whereClause.category = category;
     }
@@ -26,18 +27,6 @@ export const getProducts = asyncHandler(async (req, res) => {
 
     const products = await Product.findAndCountAll({
         where: whereClause,
-        include: [{
-            model: ReceiptItem,
-            as: 'receiptItems',
-            include: [{
-                model: Receipt,
-                as: 'receipt',
-                where: { userId },
-                attributes: []
-            }],
-            attributes: []
-        }],
-        distinct: true,
         limit: parseInt(limit),
         offset: parseInt(offset),
         order: [['lastSeenAt', 'DESC'], ['purchaseCount', 'DESC']]
@@ -60,14 +49,16 @@ export const getProduct = asyncHandler(async (req, res) => {
     const userId = req.user.id;
 
     const product = await Product.findOne({
-        where: { id },
+        where: {
+            id,
+            userId
+        },
         include: [{
             model: ReceiptItem,
             as: 'receiptItems',
             include: [{
                 model: Receipt,
                 as: 'receipt',
-                where: { userId },
                 attributes: ['id', 'merchantName', 'purchaseDate']
             }],
             order: [['createdAt', 'DESC']],
@@ -76,15 +67,6 @@ export const getProduct = asyncHandler(async (req, res) => {
     });
 
     if (!product) {
-        return res.status(404).json({
-            status: 'error',
-            message: req.t('products.not_found')
-        });
-    }
-
-    // Check if user has purchased this product
-    const hasUserPurchased = product.receiptItems && product.receiptItems.length > 0;
-    if (!hasUserPurchased) {
         return res.status(404).json({
             status: 'error',
             message: req.t('products.not_found')
@@ -103,7 +85,13 @@ export const getPriceHistory = asyncHandler(async (req, res) => {
     const { days = 90 } = req.query;
     const userId = req.user.id;
 
-    const product = await Product.findByPk(id);
+    const product = await Product.findOne({
+        where: {
+            id,
+            userId
+        }
+    });
+
     if (!product) {
         return res.status(404).json({
             status: 'error',
@@ -117,25 +105,6 @@ export const getPriceHistory = asyncHandler(async (req, res) => {
         return res.status(404).json({
             status: 'error',
             message: req.t('products.no_price_history')
-        });
-    }
-
-    // Verify user has access to this product
-    const userReceipts = await Receipt.findAll({
-        where: { userId },
-        include: [{
-            model: ReceiptItem,
-            as: 'items',
-            where: { productId: id },
-            attributes: ['id']
-        }],
-        attributes: ['id']
-    });
-
-    if (userReceipts.length === 0) {
-        return res.status(404).json({
-            status: 'error',
-            message: req.t('products.not_found')
         });
     }
 
@@ -269,26 +238,13 @@ export const updateProduct = asyncHandler(async (req, res) => {
     const { name, category, brand, unit, notes } = req.body;
     const userId = req.user.id;
 
-    // Check if user has purchased this product
-    const userReceipts = await Receipt.findAll({
-        where: { userId },
-        include: [{
-            model: ReceiptItem,
-            as: 'items',
-            where: { productId: id },
-            attributes: ['id']
-        }],
-        attributes: ['id']
+    const product = await Product.findOne({
+        where: {
+            id,
+            userId
+        }
     });
 
-    if (userReceipts.length === 0) {
-        return res.status(404).json({
-            status: 'error',
-            message: req.t('products.not_found')
-        });
-    }
-
-    const product = await Product.findByPk(id);
     if (!product) {
         return res.status(404).json({
             status: 'error',

@@ -7,6 +7,11 @@ import { AuthenticationError, ValidationError, ConflictError } from '../utils/er
 import { log } from '../utils/logger.js';
 
 class AuthService {
+    constructor() {
+        // Lock para prevenir refresh concurrentes del mismo token
+        this.refreshLocks = new Map(); // tokenString -> Promise
+    }
+
     generateAccessToken(user) {
         const payload = {
             id: user.id,
@@ -150,6 +155,35 @@ class AuthService {
     }
 
     async refreshAccessToken(refreshTokenString, ipAddress, deviceInfo) {
+        // Implementar lock por token para evitar race conditions
+        // Si múltiples requests intentan refresh del mismo token simultáneamente,
+        // solo uno procede, los demás esperan y usan el resultado del primero
+        if (this.refreshLocks.has(refreshTokenString)) {
+            log.info('Refresh already in progress, waiting for result', {
+                token: refreshTokenString?.substring(0, 8)
+            });
+            return await this.refreshLocks.get(refreshTokenString);
+        }
+
+        // Crear promise que ejecuta el refresh
+        const refreshPromise = this._doRefresh(refreshTokenString, ipAddress, deviceInfo);
+
+        // Guardar en lock map
+        this.refreshLocks.set(refreshTokenString, refreshPromise);
+
+        try {
+            const result = await refreshPromise;
+            return result;
+        } finally {
+            // Remover lock después de completar (éxito o fallo)
+            // Usar timeout para evitar que locks queden colgados
+            setTimeout(() => {
+                this.refreshLocks.delete(refreshTokenString);
+            }, 1000);
+        }
+    }
+
+    async _doRefresh(refreshTokenString, ipAddress, deviceInfo) {
         const refreshToken = await RefreshToken.findOne({
             where: { token: refreshTokenString },
             include: [{
@@ -159,10 +193,17 @@ class AuthService {
         });
 
         if (!refreshToken) {
+            log.warn('Refresh token not found in database', { token: refreshTokenString?.substring(0, 8) });
             throw new AuthenticationError('Invalid refresh token');
         }
 
         if (!refreshToken.isValid()) {
+            log.warn('Refresh token is invalid', {
+                tokenId: refreshToken.id,
+                revoked: refreshToken.revoked,
+                expiresAt: refreshToken.expiresAt,
+                now: new Date()
+            });
             throw new AuthenticationError('Refresh token expired or revoked');
         }
 
@@ -171,18 +212,25 @@ class AuthService {
             throw new AuthenticationError('User not found or inactive');
         }
 
-        // Revoke old token
-        await refreshToken.revoke();
-
-        // Generate new tokens
+        // Generate new tokens BEFORE revoking old one
+        // This prevents race conditions where multiple requests try to refresh simultaneously
         const accessToken = this.generateAccessToken(user);
         const newRefreshToken = await this.createRefreshToken(user, ipAddress, deviceInfo);
 
-        log.info('Access token refreshed', { userId: user.id });
+        // Now revoke old token (after new one is created)
+        await refreshToken.revoke();
+
+        log.info('Access token refreshed', {
+            userId: user.id,
+            oldTokenRevoked: true,
+            newTokenCreated: true
+        });
 
         return {
-            accessToken,
-            refreshToken: newRefreshToken
+            tokens: {
+                accessToken,
+                refreshToken: newRefreshToken
+            }
         };
     }
 

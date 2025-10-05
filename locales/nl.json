@@ -136,5 +136,76 @@
   "recommendations": {
     "frequently_bought_together": "Klanten die {{productA}} kopen, kopen ook {{productB}}",
     "seasonal_trend": "{{product}} wordt vaak gekocht in {{month}}"
+  },
+  "budgets": {
+    "created_successfully": "Budget succesvol aangemaakt",
+    "updated_successfully": "Budget succesvol bijgewerkt",
+    "deleted_successfully": "Budget succesvol verwijderd",
+    "duplicated_successfully": "Budget succesvol gedupliceerd",
+    "not_found": "Budget niet gevonden",
+    "already_exists": "Er bestaat al een budget voor deze categorie en periode",
+    "end_date_before_start": "Einddatum moet na startdatum liggen",
+    "invalid_period": "Ongeldige budgetperiode",
+    "invalid_threshold": "Waarschuwingsdrempels moeten positieve getallen zijn",
+    "rollover_created": "Budget overheveling succesvol aangemaakt",
+    "no_rollover": "Geen resterend budget om over te hevelen"
+  },
+  "budget_alerts": {
+    "threshold_title": "Budget Waarschuwing: {{budgetName}}",
+    "threshold_message": "Je hebt {{percentage}}% ({{currency}}{{currentSpending}}) van je {{currency}}{{budgetAmount}} budget uitgegeven",
+    "threshold_warning": "Je nadert je budgetlimiet",
+    "exceeded_title": "Budget Overschreden: {{budgetName}}",
+    "exceeded_message": "Je hebt je budget met {{percentage}}% overschreden",
+    "predictive_title": "Budget Waarschuwing: {{budgetName}}",
+    "predictive_message": "Op je huidige uitgaventempo overschrijd je je budget tegen {{projectedDate}}",
+    "predictive_suggestion": "Probeer dagelijkse uitgaven te beperken tot {{currency}}{{recommendedDaily}} om binnen budget te blijven",
+    "comparative_title": "Uitgaven Inzichten",
+    "comparative_message": "Je geeft {{percentage}}% meer uit dan gebruikelijk deze periode",
+    "marked_as_read": "Waarschuwing gemarkeerd als gelezen",
+    "all_marked_as_read": "Alle waarschuwingen gemarkeerd als gelezen",
+    "not_found": "Waarschuwing niet gevonden"
+  },
+  "notifications": {
+    "preferences_updated": "Notificatievoorkeuren succesvol bijgewerkt",
+    "fcm_token_registered": "Push notificaties succesvol geregistreerd",
+    "fcm_token_removed": "Push notificaties succesvol uitgeschakeld",
+    "channels_updated": "Notificatiekanalen succesvol bijgewerkt",
+    "quiet_hours_updated": "Stille uren succesvol bijgewerkt",
+    "digest_settings_updated": "Samenvattingsinstellingen succesvol bijgewerkt",
+    "test_sent": "Test notificatie succesvol verzonden",
+    "fcm_not_configured": "Push notificaties zijn niet geconfigureerd op deze server",
+    "fcm_healthy": "Push notificatie service is operationeel",
+    "fcm_unhealthy": "Push notificatie service is niet beschikbaar",
+    "in_quiet_hours": "Notificatie onderdrukt vanwege stille uren",
+    "channel_disabled": "Dit notificatiekanaal is uitgeschakeld in je voorkeuren"
+  },
+  "digest": {
+    "weekly_subject": "Je Wekelijkse Uitgaven Samenvatting",
+    "monthly_subject": "Je Maandelijkse Uitgaven Samenvatting",
+    "greeting": "Hoi {{name}},",
+    "summary_intro": "Hier is je uitgavenoverzicht voor {{period}}:",
+    "total_spent": "Totaal Uitgegeven",
+    "budget_status": "Budget Status",
+    "on_track": "Op Schema",
+    "over_budget": "Boven Budget",
+    "under_budget": "Onder Budget",
+    "top_categories": "Top Uitgaven Categorieën",
+    "insights_title": "Inzichten & Aanbevelingen",
+    "view_details": "Bekijk Gedetailleerd Rapport",
+    "unsubscribe": "Notificatievoorkeuren bijwerken"
+  },
+  "insights": {
+    "spending_pace_fast": "Je geeft sneller uit dan gebruikelijk. Overweeg je budget te herzien.",
+    "spending_pace_slow": "Goed gedaan! Je geeft langzamer uit dan gepland.",
+    "spending_pace_ontrack": "Je uitgaven liggen op schema met je budget.",
+    "category_warning": "{{category}} uitgaven zijn {{percentage}}% hoger dan gebruikelijk",
+    "category_success": "Je hebt {{category}} uitgaven met {{percentage}}% verlaagd",
+    "predicted_overspend": "In dit tempo overschrijd je je budget tegen {{date}}",
+    "predicted_underspend": "Je bent op schema om {{currency}}{{amount}} over te houden",
+    "comparison_higher": "{{percentage}}% hoger dan vorige {{period}}",
+    "comparison_lower": "{{percentage}}% lager dan vorige {{period}}",
+    "confidence_high": "Hoog vertrouwen gebaseerd op {{count}} bonnetjes",
+    "confidence_medium": "Gemiddeld vertrouwen gebaseerd op {{count}} bonnetjes",
+    "confidence_low": "Laag vertrouwen - voeg meer bonnetjes toe voor betere voorspellingen"
   }
 }

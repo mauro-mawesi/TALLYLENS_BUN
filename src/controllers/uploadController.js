@@ -1,31 +1,96 @@
 import multer from "multer";
-import path from "path";
-import { fileURLToPath } from "url";
+import { asyncHandler } from '../utils/errors.js';
+import { saveUserFile, FILE_CATEGORIES } from '../utils/fileStorage.js';
+import { generateSignedUrl } from '../utils/urlSigner.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Configuración de multer → guarda en /uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, path.join(__dirname, "../../uploads"));
+// Configuración de multer → usa memoria temporal
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: parseInt(process.env.MAX_FILE_SIZE || 5242880) // 5MB default
     },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    },
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = (process.env.ALLOWED_FILE_TYPES || 'image/jpeg,image/png,image/jpg').split(',');
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error(`Invalid file type. Allowed types: ${allowedTypes.join(', ')}`));
+        }
+    }
 });
-
-const upload = multer({ storage });
 
 export const uploadReceipt = [
     upload.single("file"),
-    (req, res) => {
+    asyncHandler(async (req, res) => {
         if (!req.file) {
-            return res.status(400).json({ success: false, error: "No file uploaded" });
+            return res.status(400).json({
+                success: false,
+                error: "No file uploaded"
+            });
         }
 
-        const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
-        res.json({ success: true, image_url: imageUrl });
-    },
+        // Get user ID from authenticated request
+        const userId = req.userId || req.user?.id;
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: "Authentication required"
+            });
+        }
+
+        // Save file to user's receipts directory
+        const { relativePath } = await saveUserFile(
+            userId,
+            FILE_CATEGORIES.RECEIPTS,
+            req.file.buffer,
+            req.file.originalname
+        );
+
+        // Generate signed URL (2 hours expiration)
+        const signedUrl = generateSignedUrl(relativePath, 7200);
+
+        res.json({
+            success: true,
+            image_url: signedUrl,
+            relative_path: relativePath // For storage in database
+        });
+    })
+];
+
+export const uploadProfilePhoto = [
+    upload.single("file"),
+    asyncHandler(async (req, res) => {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                error: "No file uploaded"
+            });
+        }
+
+        // Get user ID from authenticated request
+        const userId = req.userId || req.user?.id;
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: "Authentication required"
+            });
+        }
+
+        // Save file to user's profile directory
+        const { relativePath } = await saveUserFile(
+            userId,
+            FILE_CATEGORIES.PROFILE,
+            req.file.buffer,
+            req.file.originalname
+        );
+
+        // Generate signed URL (24 hours expiration for profile images)
+        const signedUrl = generateSignedUrl(relativePath, 86400);
+
+        res.json({
+            success: true,
+            image_url: signedUrl,
+            relative_path: relativePath // For storage in database
+        });
+    })
 ];

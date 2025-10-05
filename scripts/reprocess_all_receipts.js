@@ -16,11 +16,10 @@ const __dirname = path.dirname(__filename);
 
 // Configuration
 const UPLOADS_DIR = 'uploads';
-// Prefer public base URL so AI provider can fetch the image (e.g., via Cloudflare Tunnel)
-const PUBLIC_BASE = process.env.PUBLIC_BASE_URL || 'https://api.tallylens.app';
-const BASE_URL = `${PUBLIC_BASE.replace(/\/$/, '')}/uploads`;
 const DEFAULT_USER_ID = 'eac1ccc7-3daa-4034-b0a7-06f885a0766b'; // Your user ID
 const DEFAULT_LOCALE = 'es';
+// User's receipts directory with new structure
+const USER_RECEIPTS_DIR = path.join(UPLOADS_DIR, DEFAULT_USER_ID, 'receipts');
 
 console.log('🚀 Starting receipt reprocessing script...');
 
@@ -54,13 +53,13 @@ async function cleanDatabase() {
 }
 
 async function getImageFiles() {
-    console.log(`📁 Scanning for images in: ${UPLOADS_DIR}`);
+    console.log(`📁 Scanning for images in: ${USER_RECEIPTS_DIR}`);
 
-    if (!fs.existsSync(UPLOADS_DIR)) {
-        throw new Error(`Uploads directory not found: ${UPLOADS_DIR}`);
+    if (!fs.existsSync(USER_RECEIPTS_DIR)) {
+        throw new Error(`User receipts directory not found: ${USER_RECEIPTS_DIR}`);
     }
 
-    const files = fs.readdirSync(UPLOADS_DIR);
+    const files = fs.readdirSync(USER_RECEIPTS_DIR);
     const imageFiles = files.filter(file => {
         const ext = path.extname(file).toLowerCase();
         return ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
@@ -73,7 +72,9 @@ async function getImageFiles() {
 }
 
 async function processReceipt(imageFile, index, total) {
-    const imageUrl = `${BASE_URL}/${imageFile}`;
+    // Use relative path format: userId/receipts/filename
+    // This will be converted to signed URLs internally when needed
+    const imageUrl = `${DEFAULT_USER_ID}/receipts/${imageFile}`;
     console.log(`\n📋 Processing receipt ${index + 1}/${total}: ${imageFile}`);
 
     const transaction = await sequelize.transaction();

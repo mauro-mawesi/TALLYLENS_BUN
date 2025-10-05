@@ -8,16 +8,20 @@ class CacheService {
         this.isConnected = false;
         this.defaultTTL = config.redis.cacheTtl || 3600; // 1 hour default
 
-        if (config.redis.url) {
+        if (config.redis.host && config.redis.port) {
             this.connect();
         } else {
-            log.warn('Redis URL not configured, caching will be disabled');
+            log.warn('Redis not configured, caching will be disabled');
         }
     }
 
     connect() {
         try {
-            this.client = new Redis(config.redis.url, {
+            // Build Redis connection options
+            const options = {
+                host: config.redis.host,
+                port: config.redis.port,
+                password: config.redis.password,
                 retryDelayOnFailover: 100,
                 enableReadyCheck: false,
                 maxRetriesPerRequest: 3,
@@ -26,7 +30,21 @@ class CacheService {
                     const targetError = 'READONLY';
                     return err.message.includes(targetError);
                 }
-            });
+            };
+
+            // Add username if provided (Redis 6+)
+            if (config.redis.username) {
+                options.username = config.redis.username;
+            }
+
+            // Add TLS if enabled
+            if (config.redis.tls) {
+                options.tls = {
+                    rejectUnauthorized: false // Accept self-signed certificates
+                };
+            }
+
+            this.client = new Redis(options);
 
             this.client.on('connect', () => {
                 log.info('Redis client connected');

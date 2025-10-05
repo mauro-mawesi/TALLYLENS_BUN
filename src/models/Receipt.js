@@ -23,9 +23,10 @@ const Receipt = sequelize.define('Receipt', {
         type: DataTypes.TEXT,
         allowNull: false,
         validate: {
-            isUrl: {
-                msg: 'Image URL must be a valid URL'
+            notEmpty: {
+                msg: 'Image URL/path is required'
             }
+            // Removed isUrl validation - now accepts both URLs and relative paths (userId/receipts/filename)
         }
     },
     imageThumbnailUrl: {
@@ -323,6 +324,153 @@ Receipt.findDuplicate = async function(userId, receiptData) {
         isDuplicate: false,
         contentHash
     };
+};
+
+// Full-text search using PostgreSQL tsvector
+Receipt.fullTextSearch = async function(userId, query, options = {}) {
+    const {
+        limit = 20,
+        offset = 0,
+        category,
+        dateFrom,
+        dateTo,
+        minAmount,
+        maxAmount
+    } = options;
+
+    // Build WHERE clause
+    const whereConditions = ['user_id = :userId'];
+    const replacements = { userId, query };
+
+    if (category) {
+        whereConditions.push('category = :category');
+        replacements.category = category;
+    }
+
+    if (dateFrom) {
+        whereConditions.push('purchase_date >= :dateFrom');
+        replacements.dateFrom = dateFrom;
+    }
+
+    if (dateTo) {
+        whereConditions.push('purchase_date <= :dateTo');
+        replacements.dateTo = dateTo;
+    }
+
+    if (minAmount !== undefined) {
+        whereConditions.push('amount >= :minAmount');
+        replacements.minAmount = minAmount;
+    }
+
+    if (maxAmount !== undefined) {
+        whereConditions.push('amount <= :maxAmount');
+        replacements.maxAmount = maxAmount;
+    }
+
+    // Use plainto_tsquery for simple query parsing (handles spaces, punctuation)
+    // Rank results by relevance using ts_rank
+    const sql = `
+        SELECT
+            *,
+            ts_rank(search_vector, plainto_tsquery('english', :query)) as search_rank
+        FROM receipts
+        WHERE ${whereConditions.join(' AND ')}
+            AND search_vector @@ plainto_tsquery('english', :query)
+        ORDER BY search_rank DESC, purchase_date DESC
+        LIMIT :limit OFFSET :offset
+    `;
+
+    const receipts = await sequelize.query(sql, {
+        replacements: { ...replacements, limit, offset },
+        type: sequelize.QueryTypes.SELECT,
+        model: Receipt,
+        mapToModel: true
+    });
+
+    // Get total count for pagination
+    const countSql = `
+        SELECT COUNT(*) as total
+        FROM receipts
+        WHERE ${whereConditions.join(' AND ')}
+            AND search_vector @@ plainto_tsquery('english', :query)
+    `;
+
+    const [{ total }] = await sequelize.query(countSql, {
+        replacements,
+        type: sequelize.QueryTypes.SELECT
+    });
+
+    return {
+        receipts,
+        total: parseInt(total),
+        limit,
+        offset
+    };
+};
+
+// Get search suggestions based on existing data
+Receipt.getSearchSuggestions = async function(userId, partialQuery, limit = 10) {
+    if (!partialQuery || partialQuery.trim().length < 2) {
+        return [];
+    }
+
+    const query = partialQuery.trim().toLowerCase();
+
+    // Get suggestions from merchant names, categories, and tags
+    const sql = `
+        SELECT DISTINCT ON (suggestion)
+            suggestion,
+            type,
+            count
+        FROM (
+            -- Merchant names
+            SELECT
+                merchant_name as suggestion,
+                'merchant' as type,
+                COUNT(*) as count
+            FROM receipts
+            WHERE user_id = :userId
+                AND merchant_name ILIKE :query
+            GROUP BY merchant_name
+
+            UNION ALL
+
+            -- Categories
+            SELECT
+                category as suggestion,
+                'category' as type,
+                COUNT(*) as count
+            FROM receipts
+            WHERE user_id = :userId
+                AND category ILIKE :query
+            GROUP BY category
+
+            UNION ALL
+
+            -- Tags
+            SELECT
+                UNNEST(tags) as suggestion,
+                'tag' as type,
+                COUNT(*) as count
+            FROM receipts
+            WHERE user_id = :userId
+                AND EXISTS (
+                    SELECT 1 FROM UNNEST(tags) t WHERE t ILIKE :query
+                )
+            GROUP BY UNNEST(tags)
+        ) suggestions
+        ORDER BY suggestion, count DESC
+        LIMIT :limit
+    `;
+
+    return await sequelize.query(sql, {
+        replacements: {
+            userId,
+            query: `%${query}%`,
+            limit
+        },
+        type: sequelize.QueryTypes.SELECT
+    });
 };
 
 export default Receipt;

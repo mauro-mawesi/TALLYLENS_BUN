@@ -41,6 +41,11 @@ const envSchema = joi.object({
     UPLOAD_DIR: joi.string().default('uploads'),
 
     // Redis (optional for caching)
+    REDIS_HOST: joi.string().optional(),
+    REDIS_PORT: joi.number().optional(),
+    REDIS_USERNAME: joi.string().optional(),
+    REDIS_PASSWORD: joi.string().optional(),
+    REDIS_TLS: joi.boolean().default(false),
     REDIS_URL: joi.string().optional(),
     CACHE_TTL: joi.number().default(3600), // 1 hour
 
@@ -120,7 +125,14 @@ export const config = {
     },
 
     redis: {
-        url: envVars.REDIS_URL,
+        host: envVars.REDIS_HOST,
+        port: envVars.REDIS_PORT,
+        username: envVars.REDIS_USERNAME,
+        password: envVars.REDIS_PASSWORD,
+        tls: envVars.REDIS_TLS,
+        url: envVars.REDIS_URL || (envVars.REDIS_HOST
+            ? `redis${envVars.REDIS_TLS ? 's' : ''}://${envVars.REDIS_USERNAME ? envVars.REDIS_USERNAME + ':' : ':'}${envVars.REDIS_PASSWORD}@${envVars.REDIS_HOST}:${envVars.REDIS_PORT}`
+            : null),
         cacheTtl: envVars.CACHE_TTL,
     },
 

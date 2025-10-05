@@ -7,92 +7,123 @@ class QueueService {
         this.queues = {};
         this.isConnected = false;
 
-        if (config.redis.url) {
+        if (config.redis.host && config.redis.port) {
             this.connect();
         } else {
-            log.warn('Redis URL not configured, background jobs will be disabled');
+            log.warn('Redis not configured, background jobs will be disabled');
         }
     }
 
     connect() {
         try {
-            // OCR Processing Queue
-            this.queues.ocr = new Bull('OCR Processing', config.redis.url, {
-                defaultJobOptions: {
-                    attempts: 3,
-                    backoff: {
-                        type: 'exponential',
-                        delay: 2000,
-                    },
-                    removeOnComplete: 10,
-                    removeOnFail: 5,
-                },
-                settings: {
-                    stalledInterval: 30 * 1000,
-                    maxStalledCount: 1,
+            // Build Redis connection config from individual properties
+            const redisConfig = {
+                host: config.redis.host,
+                port: config.redis.port,
+                password: config.redis.password,
+            };
+
+            // Add username if provided (Redis 6+)
+            if (config.redis.username) {
+                redisConfig.username = config.redis.username;
+            }
+
+            // Add TLS if enabled
+            if (config.redis.tls) {
+                redisConfig.tls = {
+                    rejectUnauthorized: false
+                };
+            }
+
+            // Base queue options helper
+            const getQueueOptions = (jobOptions, settings = {}) => {
+                const options = {
+                    redis: redisConfig,
+                    defaultJobOptions: jobOptions
+                };
+
+                if (settings && Object.keys(settings).length > 0) {
+                    options.settings = settings;
                 }
-            });
+
+                return options;
+            };
+
+            // OCR Processing Queue
+            this.queues.ocr = new Bull('OCR Processing', getQueueOptions({
+                attempts: 3,
+                backoff: {
+                    type: 'exponential',
+                    delay: 2000,
+                },
+                removeOnComplete: 10,
+                removeOnFail: 5,
+            }, {
+                stalledInterval: 30 * 1000,
+                maxStalledCount: 1,
+            }));
 
             // Categorization Queue
-            this.queues.categorization = new Bull('Categorization', config.redis.url, {
-                defaultJobOptions: {
-                    attempts: 3,
-                    backoff: {
-                        type: 'exponential',
-                        delay: 1000,
-                    },
-                    removeOnComplete: 10,
-                    removeOnFail: 5,
-                }
-            });
+            this.queues.categorization = new Bull('Categorization', getQueueOptions({
+                attempts: 3,
+                backoff: {
+                    type: 'exponential',
+                    delay: 1000,
+                },
+                removeOnComplete: 10,
+                removeOnFail: 5,
+            }));
 
             // Email Queue
-            this.queues.email = new Bull('Email', config.redis.url, {
-                defaultJobOptions: {
-                    attempts: 5,
-                    backoff: {
-                        type: 'exponential',
-                        delay: 5000,
-                    },
-                    removeOnComplete: 20,
-                    removeOnFail: 10,
-                }
-            });
+            this.queues.email = new Bull('Email', getQueueOptions({
+                attempts: 5,
+                backoff: {
+                    type: 'exponential',
+                    delay: 5000,
+                },
+                removeOnComplete: 20,
+                removeOnFail: 10,
+            }));
 
             // File Processing Queue
-            this.queues.fileProcessing = new Bull('File Processing', config.redis.url, {
-                defaultJobOptions: {
-                    attempts: 2,
-                    backoff: {
-                        type: 'fixed',
-                        delay: 3000,
-                    },
-                    removeOnComplete: 5,
-                    removeOnFail: 5,
-                }
-            });
+            this.queues.fileProcessing = new Bull('File Processing', getQueueOptions({
+                attempts: 2,
+                backoff: {
+                    type: 'fixed',
+                    delay: 3000,
+                },
+                removeOnComplete: 5,
+                removeOnFail: 5,
+            }));
 
             // Cleanup Queue
-            this.queues.cleanup = new Bull('Cleanup', config.redis.url, {
-                defaultJobOptions: {
-                    attempts: 1,
-                    removeOnComplete: 3,
-                    removeOnFail: 3,
-                }
-            });
+            this.queues.cleanup = new Bull('Cleanup', getQueueOptions({
+                attempts: 1,
+                removeOnComplete: 3,
+                removeOnFail: 3,
+            }));
 
             // Statistics Queue
-            this.queues.statistics = new Bull('Statistics', config.redis.url, {
-                defaultJobOptions: {
-                    attempts: 2,
-                    backoff: {
-                        type: 'fixed',
-                        delay: 10000,
-                    },
-                    removeOnComplete: 5,
-                    removeOnFail: 3,
-                }
-            });
+            this.queues.statistics = new Bull('Statistics', getQueueOptions({
+                attempts: 2,
+                backoff: {
+                    type: 'fixed',
+                    delay: 10000,
+                },
+                removeOnComplete: 5,
+                removeOnFail: 3,
+            }));
+
+            // Budget Queue
+            this.queues.budget = new Bull('Budget', getQueueOptions({
+                attempts: 3,
+                backoff: {
+                    type: 'exponential',
+                    delay: 5000,
+                },
+                removeOnComplete: 10,
+                removeOnFail: 5,
+            }));
 
             this.setupEventListeners();
             this.isConnected = true;

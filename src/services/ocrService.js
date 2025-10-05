@@ -5,8 +5,9 @@ import url from "url";
 import { log } from "../utils/logger.js";
 import { processReceiptWithAIFromImage } from "./categorizationService.js";
 import { validateAndCorrectReceiptData } from "./receiptValidationService.js";
-import imageEnhancementService from "./imageEnhancementService.js";
 import cacheService from "./cacheService.js";
+import { generateSignedUrl } from "../utils/urlSigner.js";
+import { saveUserFile, getFullPath, parseRelativePath, FILE_CATEGORIES } from '../utils/fileStorage.js';
 
 // No Vision client
 
@@ -65,8 +66,43 @@ async function callLocalOcrViaProcessor(fileName) {
 function isBackendUploads(imageUrl) {
     try {
         const p = url.parse(imageUrl).pathname || '';
-        return p.includes('/uploads/');
+        return p.includes('/secure/') || p.includes('/uploads/');
     } catch { return false; }
+}
+
+/**
+ * Extracts userId from image URL or path
+ * @param {string} imageUrl - Image URL or relative path
+ * @returns {string|null} User ID or null
+ */
+function extractUserIdFromPath(imageUrl) {
+    try {
+        // Try parsing as relative path first (userId/category/filename)
+        const parsed = parseRelativePath(imageUrl);
+        if (parsed && parsed.userId) {
+            return parsed.userId;
+        }
+
+        // Try extracting from /secure/ URL
+        if (imageUrl.includes('/secure/')) {
+            const match = imageUrl.match(/\/secure\/([^/]+)\//);
+            if (match) {
+                return match[1];
+            }
+        }
+
+        // Try extracting from old /uploads/ URL (legacy)
+        if (imageUrl.includes('/uploads/')) {
+            const match = imageUrl.match(/\/uploads\/([^/]+)\//);
+            if (match) {
+                return match[1];
+            }
+        }
+
+        return null;
+    } catch {
+        return null;
+    }
 }
 
 function avgConfidence(words) {
@@ -82,56 +118,60 @@ export async function extractTextFromImage() {
 export async function extractReceiptData(imageUrl, locale = 'en', options = {}) {
     try {
         const { skipEnhancement = false, source = null, processedByMLKit = false } = options || {};
+
+        // Extract userId from image URL/path
+        const userId = extractUserIdFromPath(imageUrl);
+
         // 1) Load file and produce processed image (deskew/crop/orient/enhance)
         let imageBytes;
         let filePath;
         let fileName;
-        if (imageUrl.includes('/uploads/')) {
-            fileName = path.basename(url.parse(imageUrl).pathname);
-            filePath = path.resolve('uploads', fileName);
+        let relativePath;
+
+        // Check if it's a relative path (new structure: userId/receipts/filename)
+        const parsedPath = parseRelativePath(imageUrl);
+        if (parsedPath) {
+            // New structure: userId/receipts/filename
+            relativePath = imageUrl;
+            filePath = getFullPath(relativePath);
+            fileName = parsedPath.filename;
+            imageBytes = fs.readFileSync(filePath);
+            log.debug('Loading image from user directory', { userId: parsedPath.userId, category: parsedPath.category, filename: fileName });
+        } else if (imageUrl.includes('/secure/') || imageUrl.includes('/uploads/')) {
+            // URL format (either /secure/ or old /uploads/)
+            const pathname = url.parse(imageUrl).pathname;
+            // Extract relative path from URL (e.g., /secure/userId/receipts/file.jpg -> userId/receipts/file.jpg)
+            relativePath = pathname.replace(/^\/secure\//, '').replace(/^\/uploads\//, '');
+            const parsed = parseRelativePath(relativePath);
+            if (parsed) {
+                filePath = getFullPath(relativePath);
+                fileName = parsed.filename;
+            } else {
+                // Fallback to old single-level structure
+                fileName = path.basename(pathname);
+                filePath = path.resolve('uploads', fileName);
+            }
             imageBytes = fs.readFileSync(filePath);
         } else {
+            // External URL
             const resp = await fetch(imageUrl);
             imageBytes = Buffer.from(await resp.arrayBuffer());
         }
-        let processedImage;
-        let processedImageResult = null;
 
-        if (skipEnhancement) {
-            // Skip any enhancement/cropping/orientation when image was already processed by ML Kit
-            log.info('Skipping enhancement due to processedByMLKit flag', { source, processedByMLKit });
-            processedImage = imageBytes;
-        } else {
-            const enhancementOptions = {};
-            if (fileName) enhancementOptions.fileName = fileName;
-            processedImageResult = await imageEnhancementService.enhanceReceiptImage(imageBytes, enhancementOptions);
-            processedImage = (processedImageResult && processedImageResult.buffer) ? processedImageResult.buffer : processedImageResult;
-        }
+        // Use original image without any processing
+        const processedImage = imageBytes;
+        log.info('Using original image without processing');
 
-        // Build public URL for the processed image if available (prefer PUBLIC_BASE_URL if set)
+        // Build signed URL for AI processing from original image
         let publicImageUrl = null;
         try {
-            const base = new URL(imageUrl);
-            const publicBase = process.env.PUBLIC_BASE_URL || base.origin;
-            if (!skipEnhancement) {
-                if (processedImageResult && processedImageResult.processedFileName) {
-                    publicImageUrl = `${publicBase.replace(/\/$/, '')}/uploads/${processedImageResult.processedFileName}`;
-                } else if (fileName) {
-                    const outName = `${Date.now()}-ai_processed.webp`;
-                    const outPath = path.resolve('uploads', outName);
-                    await fs.promises.writeFile(outPath, processedImage);
-                    publicImageUrl = `${publicBase.replace(/\/$/, '')}/uploads/${outName}`;
-                }
-            } else {
-                // When skipping enhancement, prefer original URL so the model sees exactly ML Kit output
-                publicImageUrl = imageUrl;
-            }
+            publicImageUrl = generateSignedUrl(relativePath || imageUrl, 7200);
         } catch (e) {
-            log.warn('Could not build publicImageUrl for AI vision', { error: e.message });
+            log.warn('Could not build signed URL for AI vision', { error: e.message });
         }
 
         // 2) Unified AI directly from processed image (OCR+parsing in one step). No OCR fallbacks.
-        log.info('Processing receipt with AI from image');
+        log.info('Processing receipt with AI from signed URL');
         const aiResult = await processReceiptWithAIFromImage(processedImage, locale, publicImageUrl);
         if (!aiResult.success) {
             return { success: false, error: aiResult.error || 'AI image pipeline failed' };

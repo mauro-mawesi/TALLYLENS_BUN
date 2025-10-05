@@ -43,6 +43,11 @@ export async function categorizeReceipt(text, locale = 'en') {
 
 export async function categorizeProduct(productName, locale = 'en') {
     try {
+        // Defensive: avoid provider 400 when content is null/empty
+        const safeName = (productName ?? '').toString().trim();
+        if (!safeName) {
+            return 'others';
+        }
         const prompts = getAIPrompts(locale);
 
         const completion = await client.chat.completions.create({
@@ -52,7 +57,7 @@ export async function categorizeProduct(productName, locale = 'en') {
                     role: "system",
                     content: prompts.productClassifier
                 },
-                { role: "user", content: productName },
+                { role: "user", content: safeName },
             ],
             max_tokens: 10,
         });
@@ -352,6 +357,8 @@ Respond with ONLY valid JSON. No additional text, explanations, or formatting.`
 
 export async function translateAndNormalizeProductName(productName) {
     try {
+        const safeName = (productName ?? '').toString().trim();
+        if (!safeName) return '';
         const completion = await client.chat.completions.create({
             model: "openai/gpt-4o-mini",
             messages: [
@@ -376,7 +383,7 @@ Examples:
 
 Respond ONLY with the normalized Spanish name. No explanations or additional text.`
                 },
-                { role: "user", content: productName },
+                { role: "user", content: safeName },
             ],
             max_tokens: 50,
         });
@@ -384,7 +391,7 @@ Respond ONLY with the normalized Spanish name. No explanations or additional tex
         const normalized = completion.choices[0].message.content.trim();
 
         log.debug("Product name normalized", {
-            original: productName,
+            original: safeName,
             normalized: normalized
         });
 
@@ -392,7 +399,7 @@ Respond ONLY with the normalized Spanish name. No explanations or additional tex
     } catch (err) {
         log.error("Error en traducción/normalización de producto:", err);
         // Fallback: basic cleanup
-        return productName
+        return (productName ?? '')
             .replace(/[^\w\s]/g, ' ')
             .replace(/\s+/g, ' ')
             .trim()
@@ -403,6 +410,12 @@ Respond ONLY with the normalized Spanish name. No explanations or additional tex
 // New: Unified AI pipeline starting from processed image bytes (OCR + parsing)
 export async function processReceiptWithAIFromImage(imageBuffer, locale = 'en', publicImageUrl = null) {
     log.info('processReceiptWithAIFromImage called', { locale, publicImageUrl });
+
+    // IMPORTANT: We require a signed public URL - base64 is NOT supported to avoid token bloat
+    if (!publicImageUrl) {
+        throw new Error('publicImageUrl is required - base64 encoding is not supported to avoid excessive token usage');
+    }
+
     try {
         const bufHash = Buffer.isBuffer(imageBuffer) ? imageBuffer : Buffer.from(imageBuffer);
         const hash = crypto.createHash('sha256').update(bufHash).digest('hex');
@@ -415,20 +428,13 @@ export async function processReceiptWithAIFromImage(imageBuffer, locale = 'en', 
             }
         } catch {}
 
-        // Prefer public URL if provided (e.g., https://api.tallylens.app/uploads/xxx.webp)
-        let imageInput;
-        if (publicImageUrl) {
-            imageInput = { type: 'image_url', image_url: { url: publicImageUrl } };
-        } else {
-            // Data URL fallback
-            const b = Buffer.isBuffer(imageBuffer) ? imageBuffer : Buffer.from(imageBuffer);
-            const isPng = b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47;
-            const isJpg = b[0]===0xFF && b[1]===0xD8;
-            const isWebp = b[0]===0x52 && b[1]===0x49 && b[2]===0x46 && b[3]===0x46 && b.slice(8,12).toString('utf8')==='WEBP';
-            const mime = isPng ? 'image/png' : isJpg ? 'image/jpeg' : isWebp ? 'image/webp' : 'image/png';
-            const dataUrl = `data:${mime};base64,${b.toString('base64')}`;
-            imageInput = { type: 'input_image', image_url: { url: dataUrl } };
-        }
+        // Use signed URL (e.g., https://api.tallylens.app/secure/receipts/xxx.webp?expires=...&signature=...)
+        // This URL is temporary and secure - only valid for the duration needed by OpenRouter
+        const imageInput = { type: 'image_url', image_url: { url: publicImageUrl } };
+
+        log.info('Using signed URL for AI processing', {
+            url: publicImageUrl.split('?')[0] // Log without signature
+        });
 
         const prompts = getAIPrompts(locale);
 

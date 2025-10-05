@@ -8,6 +8,15 @@ const Product = sequelize.define('Product', {
         primaryKey: true,
         allowNull: false
     },
+    userId: {
+        field: 'user_id',
+        type: DataTypes.UUID,
+        allowNull: false,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
+    },
     name: {
         type: DataTypes.STRING,
         allowNull: false,
@@ -22,7 +31,6 @@ const Product = sequelize.define('Product', {
         field: 'normalized_name',
         type: DataTypes.STRING,
         allowNull: false,
-        unique: true,
         validate: {
             len: {
                 args: [1, 255],
@@ -164,7 +172,8 @@ const Product = sequelize.define('Product', {
     timestamps: true,
     underscored: true,
     indexes: [
-        { fields: ['normalized_name'], unique: true },
+        { fields: ['user_id'] },
+        { fields: ['user_id', 'normalized_name'], unique: true },
         { fields: ['category'] },
         { fields: ['brand'] },
         { fields: ['barcode'], unique: true, where: { barcode: { [sequelize.Sequelize.Op.not]: null } } },
@@ -228,12 +237,16 @@ Product.prototype.updatePriceStats = async function(newPrice) {
 };
 
 // Class methods
-Product.findOrCreateByName = async function(name, additionalData = {}) {
+Product.findOrCreateByName = async function(userId, name, additionalData = {}) {
     const normalizedName = normalizeProductName(name);
 
     const [product, created] = await this.findOrCreate({
-        where: { normalizedName },
+        where: {
+            userId,
+            normalizedName
+        },
         defaults: {
+            userId,
             name,
             normalizedName,
             ...additionalData
@@ -243,12 +256,13 @@ Product.findOrCreateByName = async function(name, additionalData = {}) {
     return { product, created };
 };
 
-Product.findSimilar = async function(name, threshold = 0.8) {
+Product.findSimilar = async function(userId, name, threshold = 0.8) {
     const normalizedName = normalizeProductName(name);
 
     // Simple similarity search - can be enhanced with more sophisticated algorithms
     return await this.findAll({
         where: {
+            userId,
             normalizedName: {
                 [sequelize.Sequelize.Op.iLike]: `%${normalizedName}%`
             }

@@ -86,18 +86,23 @@ router.get('/receipt/:receiptId', async (req, res) => {
             });
         }
 
-        // Handle both local and external URLs
+        // Handle both relative paths and URLs
         let imagePath;
-        if (imageUrl.includes('/uploads/')) {
-            // Local file
+
+        // Check if it's a relative path (new structure: userId/receipts/filename)
+        if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+            // Relative path
+            imagePath = path.resolve('uploads', imageUrl);
+        } else if (imageUrl.includes('/uploads/')) {
+            // Old URL format with /uploads/
             const filename = path.basename(imageUrl);
             imagePath = path.resolve('uploads', filename);
         } else {
-            // External URL - could implement caching here
+            // External URL - not supported
             return res.status(400).json({
                 status: 'error',
                 message: 'External images not supported in this endpoint',
-                imageUrl: imageUrl // Return URL for client to fetch directly
+                imageUrl: imageUrl
             });
         }
 
@@ -229,14 +234,19 @@ router.get('/receipt/:receiptId/info', async (req, res) => {
 
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const imageUrl = receipt.imageUrl;
-        const isLocal = imageUrl && imageUrl.includes('/uploads/');
+
+        // Check if it's a local file (relative path or /uploads/ URL)
+        const isLocal = imageUrl && (
+            !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://') ||
+            imageUrl.includes('/uploads/')
+        );
 
         res.json({
             status: 'success',
             data: {
                 imageUrl: imageUrl,
                 thumbnailUrl: receipt.imageThumbnailUrl || `${baseUrl}/api/images/receipt/${receiptId}?thumbnail=true`,
-                directImageUrl: isLocal ? imageUrl : null,
+                directImageUrl: null, // Always use protected endpoint
                 hasImage: !!imageUrl,
                 imageType: isLocal ? 'local' : 'external',
                 endpoints: {

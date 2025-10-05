@@ -3,12 +3,15 @@ import { log } from '../utils/logger.js';
 import Receipt from '../models/Receipt.js';
 import ReceiptItem from '../models/ReceiptItem.js';
 import Product from '../models/Product.js';
+import SearchHistory from '../models/SearchHistory.js';
+import SavedFilter from '../models/SavedFilter.js';
 import { extractReceiptData } from '../services/ocrService.js';
 import { categorizeReceipt } from '../services/categorizationService.js';
 import { processReceiptItems } from '../services/receiptItemService.js';
 import { Op } from 'sequelize';
 import sequelize from '../config/db.js';
 import { mapCategoryToInternal, CATEGORY_INTERNAL_TO_LOCALIZED } from '../utils/categoryMapper.js';
+import { addSignedUrlsToReceipt } from '../utils/urlSigner.js';
 
 // Get user's receipts with pagination and filtering
 export const getReceipts = asyncHandler(async (req, res) => {
@@ -118,10 +121,16 @@ export const getReceipts = asyncHandler(async (req, res) => {
         order: [[validSortBy, validSortOrder]]
     });
 
+    // Add signed URLs to each receipt (1 hour expiration for list view)
+    const receiptsWithSignedUrls = receipts.rows.map(receipt => {
+        const receiptJson = receipt.toJSON();
+        return addSignedUrlsToReceipt(receiptJson, 3600); // 1 hour
+    });
+
     res.json({
         status: 'success',
         data: {
-            receipts: receipts.rows,
+            receipts: receiptsWithSignedUrls,
             total: receipts.count,
             limit: parseInt(limit),
             offset: parseInt(offset)
@@ -155,16 +164,38 @@ export const getReceiptById = asyncHandler(async (req, res) => {
         });
     }
 
+    // Add signed URLs to receipt (2 hours expiration for detail view)
+    const receiptWithSignedUrls = addSignedUrlsToReceipt(receipt.toJSON(), 7200);
+
     res.json({
         status: 'success',
-        data: receipt
+        data: receiptWithSignedUrls
     });
 });
 
 // Create a new receipt with OCR and item processing
 export const createReceipt = asyncHandler(async (req, res) => {
-    const { imageUrl, notes, category, forceDuplicate = false, processedByMLKit = false, source } = req.body;
+    let { imageUrl, notes, category, forceDuplicate = false, processedByMLKit = false, source } = req.body;
     const userId = req.user.id;
+
+    // If imageUrl is a signed URL, extract the relative path
+    // Format: https://api.tallylens.app/secure/userId/receipts/file.jpg?expires=XXX&signature=YYY
+    // We want: userId/receipts/file.jpg
+    if (imageUrl) {
+        try {
+            // Robust normalization: handle signed /secure URLs and legacy /uploads URLs
+            if (imageUrl.includes('/secure/') || imageUrl.startsWith('http')) {
+                const urlObj = new URL(imageUrl);
+                imageUrl = urlObj.pathname.replace(/^\/secure\//, '').replace(/^\/uploads\//, '');
+                log.info('Normalized imageUrl from URL to relative path', { imageUrl });
+            } else if (imageUrl.includes('/uploads/')) {
+                imageUrl = imageUrl.replace(/^\/uploads\//, '');
+                log.info('Normalized legacy /uploads imageUrl to relative path', { imageUrl });
+            }
+        } catch (e) {
+            log.warn('Could not normalize imageUrl, using as-is', { imageUrl });
+        }
+    }
 
     // Start transaction for atomic operations
     const transaction = await sequelize.transaction();
@@ -279,10 +310,11 @@ export const createReceipt = asyncHandler(async (req, res) => {
         if (finalCategory === 'grocery' && Array.isArray(ocrResult.items) && ocrResult.items.length > 0) {
             log.info('Processing receipt items', {
                 receiptId: receipt.id,
+                userId: req.user.id,
                 itemCount: ocrResult.items.length
             });
 
-            await processReceiptItems(receipt.id, ocrResult.items, ocrResult.currency, transaction, req.locale);
+            await processReceiptItems(receipt.id, req.user.id, ocrResult.items, ocrResult.currency, transaction, req.locale);
         }
 
         // Log validation warnings if any
@@ -577,6 +609,280 @@ export const getReceiptStats = asyncHandler(async (req, res) => {
                 uniqueMerchants
             },
             period: `${days} days`
+        }
+    });
+});
+
+// Full-text search receipts
+export const searchReceipts = asyncHandler(async (req, res) => {
+    const {
+        q,
+        category,
+        dateFrom,
+        dateTo,
+        minAmount,
+        maxAmount,
+        limit = 20,
+        offset = 0
+    } = req.query;
+    const userId = req.user.id;
+
+    if (!q || q.trim().length < 2) {
+        return res.status(400).json({
+            status: 'error',
+            message: req.t('search.query_too_short')
+        });
+    }
+
+    const options = {
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+    };
+
+    if (category) {
+        const internalCategory = mapCategoryToInternal(category);
+        if (internalCategory) {
+            options.category = internalCategory;
+        }
+    }
+
+    if (dateFrom) {
+        const fromDate = new Date(dateFrom);
+        if (!isNaN(fromDate.getTime())) {
+            options.dateFrom = fromDate;
+        }
+    }
+
+    if (dateTo) {
+        const toDate = new Date(dateTo);
+        if (!isNaN(toDate.getTime())) {
+            toDate.setHours(23, 59, 59, 999);
+            options.dateTo = toDate;
+        }
+    }
+
+    if (minAmount !== undefined) {
+        const min = parseFloat(minAmount);
+        if (!isNaN(min) && min >= 0) {
+            options.minAmount = min;
+        }
+    }
+
+    if (maxAmount !== undefined) {
+        const max = parseFloat(maxAmount);
+        if (!isNaN(max) && max >= 0) {
+            options.maxAmount = max;
+        }
+    }
+
+    const result = await Receipt.fullTextSearch(userId, q.trim(), options);
+
+    // Save to search history
+    await SearchHistory.addSearch(userId, q.trim(), result.total);
+
+    log.info('Full-text search performed', {
+        userId,
+        query: q.trim(),
+        results: result.total
+    });
+
+    res.json({
+        status: 'success',
+        data: result
+    });
+});
+
+// Get search suggestions
+export const getSearchSuggestions = asyncHandler(async (req, res) => {
+    const { q, limit = 10 } = req.query;
+    const userId = req.user.id;
+
+    if (!q || q.trim().length < 2) {
+        return res.json({
+            status: 'success',
+            data: {
+                suggestions: []
+            }
+        });
+    }
+
+    const suggestions = await Receipt.getSearchSuggestions(
+        userId,
+        q.trim(),
+        parseInt(limit)
+    );
+
+    res.json({
+        status: 'success',
+        data: {
+            suggestions
+        }
+    });
+});
+
+// Get search history
+export const getSearchHistory = asyncHandler(async (req, res) => {
+    const { limit = 20, type = 'recent' } = req.query;
+    const userId = req.user.id;
+
+    let history;
+    if (type === 'popular') {
+        history = await SearchHistory.getPopularSearches(userId, parseInt(limit));
+    } else {
+        history = await SearchHistory.getRecentSearches(userId, parseInt(limit));
+    }
+
+    res.json({
+        status: 'success',
+        data: {
+            history,
+            type
+        }
+    });
+});
+
+// Clear search history
+export const clearSearchHistory = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+
+    await SearchHistory.destroy({
+        where: { userId }
+    });
+
+    log.info('Search history cleared', { userId });
+
+    res.json({
+        status: 'success',
+        message: req.t('search.history_cleared')
+    });
+});
+
+// Get saved filters
+export const getSavedFilters = asyncHandler(async (req, res) => {
+    const { activeOnly = true } = req.query;
+    const userId = req.user.id;
+
+    const filters = await SavedFilter.getUserFilters(userId, activeOnly === 'true');
+
+    res.json({
+        status: 'success',
+        data: {
+            filters
+        }
+    });
+});
+
+// Create saved filter
+export const createSavedFilter = asyncHandler(async (req, res) => {
+    const { name, description, filters } = req.body;
+    const userId = req.user.id;
+
+    const savedFilter = await SavedFilter.create({
+        userId,
+        name,
+        description,
+        filters
+    });
+
+    log.info('Saved filter created', {
+        userId,
+        filterId: savedFilter.id,
+        name
+    });
+
+    res.status(201).json({
+        status: 'success',
+        message: req.t('search.filter_saved'),
+        data: {
+            filter: savedFilter
+        }
+    });
+});
+
+// Update saved filter
+export const updateSavedFilter = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { name, description, filters, isActive } = req.body;
+    const userId = req.user.id;
+
+    const savedFilter = await SavedFilter.findOne({
+        where: { id, userId }
+    });
+
+    if (!savedFilter) {
+        return res.status(404).json({
+            status: 'error',
+            message: req.t('search.filter_not_found')
+        });
+    }
+
+    await savedFilter.update({
+        ...(name && { name }),
+        ...(description !== undefined && { description }),
+        ...(filters && { filters }),
+        ...(isActive !== undefined && { isActive })
+    });
+
+    res.json({
+        status: 'success',
+        message: req.t('search.filter_updated'),
+        data: {
+            filter: savedFilter
+        }
+    });
+});
+
+// Delete saved filter
+export const deleteSavedFilter = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const savedFilter = await SavedFilter.findOne({
+        where: { id, userId }
+    });
+
+    if (!savedFilter) {
+        return res.status(404).json({
+            status: 'error',
+            message: req.t('search.filter_not_found')
+        });
+    }
+
+    await savedFilter.destroy();
+
+    log.info('Saved filter deleted', {
+        userId,
+        filterId: id
+    });
+
+    res.json({
+        status: 'success',
+        message: req.t('search.filter_deleted')
+    });
+});
+
+// Use saved filter (increment count)
+export const useSavedFilter = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const savedFilter = await SavedFilter.findOne({
+        where: { id, userId }
+    });
+
+    if (!savedFilter) {
+        return res.status(404).json({
+            status: 'error',
+            message: req.t('search.filter_not_found')
+        });
+    }
+
+    await savedFilter.incrementUseCount();
+
+    res.json({
+        status: 'success',
+        data: {
+            filter: savedFilter
         }
     });
 });

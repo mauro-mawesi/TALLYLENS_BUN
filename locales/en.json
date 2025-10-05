@@ -136,5 +136,76 @@
   "recommendations": {
     "frequently_bought_together": "Customers who buy {{productA}} also buy {{productB}}",
     "seasonal_trend": "{{product}} is frequently purchased in {{month}}"
+  },
+  "budgets": {
+    "created_successfully": "Budget created successfully",
+    "updated_successfully": "Budget updated successfully",
+    "deleted_successfully": "Budget deleted successfully",
+    "duplicated_successfully": "Budget duplicated successfully",
+    "not_found": "Budget not found",
+    "already_exists": "A budget already exists for this category and period",
+    "end_date_before_start": "End date must be after start date",
+    "invalid_period": "Invalid budget period",
+    "invalid_threshold": "Alert thresholds must be positive numbers",
+    "rollover_created": "Budget rollover created successfully",
+    "no_rollover": "No remaining budget to rollover"
+  },
+  "budget_alerts": {
+    "threshold_title": "Budget Alert: {{budgetName}}",
+    "threshold_message": "You've spent {{percentage}}% ({{currency}}{{currentSpending}}) of your {{currency}}{{budgetAmount}} budget",
+    "threshold_warning": "You're approaching your budget limit",
+    "exceeded_title": "Budget Exceeded: {{budgetName}}",
+    "exceeded_message": "You've exceeded your budget by {{percentage}}%",
+    "predictive_title": "Budget Warning: {{budgetName}}",
+    "predictive_message": "At your current spending rate, you'll exceed your budget by {{projectedDate}}",
+    "predictive_suggestion": "Try to limit daily spending to {{currency}}{{recommendedDaily}} to stay within budget",
+    "comparative_title": "Spending Insights",
+    "comparative_message": "You're spending {{percentage}}% more than usual this period",
+    "marked_as_read": "Alert marked as read",
+    "all_marked_as_read": "All alerts marked as read",
+    "not_found": "Alert not found"
+  },
+  "notifications": {
+    "preferences_updated": "Notification preferences updated successfully",
+    "fcm_token_registered": "Push notifications registered successfully",
+    "fcm_token_removed": "Push notifications disabled successfully",
+    "channels_updated": "Notification channels updated successfully",
+    "quiet_hours_updated": "Quiet hours updated successfully",
+    "digest_settings_updated": "Digest settings updated successfully",
+    "test_sent": "Test notification sent successfully",
+    "fcm_not_configured": "Push notifications are not configured on this server",
+    "fcm_healthy": "Push notification service is operational",
+    "fcm_unhealthy": "Push notification service is unavailable",
+    "in_quiet_hours": "Notification suppressed due to quiet hours",
+    "channel_disabled": "This notification channel is disabled in your preferences"
+  },
+  "digest": {
+    "weekly_subject": "Your Weekly Spending Summary",
+    "monthly_subject": "Your Monthly Spending Summary",
+    "greeting": "Hi {{name}},",
+    "summary_intro": "Here's your spending summary for {{period}}:",
+    "total_spent": "Total Spent",
+    "budget_status": "Budget Status",
+    "on_track": "On Track",
+    "over_budget": "Over Budget",
+    "under_budget": "Under Budget",
+    "top_categories": "Top Spending Categories",
+    "insights_title": "Insights & Recommendations",
+    "view_details": "View Detailed Report",
+    "unsubscribe": "Update notification preferences"
+  },
+  "insights": {
+    "spending_pace_fast": "You're spending faster than usual. Consider reviewing your budget.",
+    "spending_pace_slow": "Great job! You're spending slower than projected.",
+    "spending_pace_ontrack": "Your spending is on track with your budget.",
+    "category_warning": "{{category}} spending is {{percentage}}% higher than usual",
+    "category_success": "You've reduced {{category}} spending by {{percentage}}%",
+    "predicted_overspend": "At this rate, you'll exceed your budget by {{date}}",
+    "predicted_underspend": "You're on track to have {{currency}}{{amount}} remaining",
+    "comparison_higher": "{{percentage}}% higher than last {{period}}",
+    "comparison_lower": "{{percentage}}% lower than last {{period}}",
+    "confidence_high": "High confidence based on {{count}} receipts",
+    "confidence_medium": "Medium confidence based on {{count}} receipts",
+    "confidence_low": "Low confidence - add more receipts for better predictions"
   }
 }
