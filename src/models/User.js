@@ -64,12 +64,9 @@ const User = sequelize.define('User', {
     profileImageUrl: {
         field: 'profile_image_url',
         type: DataTypes.TEXT,
-        allowNull: true,
-        validate: {
-            isUrl: {
-                msg: 'Profile image URL must be a valid URL'
-            }
-        }
+        allowNull: true
+        // Note: Stores relative path (e.g., "userId/profile/image.jpg")
+        // Signed URLs are generated on-demand via addSignedUrlsToProfile()
     },
     role: {
         type: DataTypes.ENUM('user', 'admin', 'moderator'),

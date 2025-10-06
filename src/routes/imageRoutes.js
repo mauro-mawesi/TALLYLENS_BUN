@@ -93,6 +93,15 @@ router.get('/receipt/:receiptId', async (req, res) => {
         if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
             // Relative path
             imagePath = path.resolve('uploads', imageUrl);
+        } else if (imageUrl.includes('/secure/')) {
+            // Signed URL stored by mistake; extract relative path safely
+            try {
+                const u = new URL(imageUrl);
+                const relative = u.pathname.replace(/^\/secure\//, '').replace(/^\/uploads\//, '');
+                imagePath = path.resolve('uploads', relative);
+            } catch (_) {
+                return res.status(400).json({ status: 'error', message: 'Invalid signed image URL', imageUrl });
+            }
         } else if (imageUrl.includes('/uploads/')) {
             // Old URL format with /uploads/
             const filename = path.basename(imageUrl);

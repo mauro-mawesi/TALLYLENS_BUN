@@ -550,8 +550,9 @@ router.put('/profile/photo', [
     authenticate,
     languageDetectorAuth,
     body('imageUrl')
-        .isURL()
-        .withMessage('Profile image URL must be a valid URL'),
+        .notEmpty()
+        .isString()
+        .withMessage('Profile image path is required'),
     validate
 ], updateProfilePhoto);
 

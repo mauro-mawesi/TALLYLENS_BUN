@@ -141,9 +141,12 @@ export function addSignedUrlsToProfile(user, expiresIn = 86400) {
 
     const userCopy = { ...user };
 
-    // Sign profile image URL
-    if (userCopy.profile_image_url) {
-        userCopy.profile_image_url = generateSignedUrl(userCopy.profile_image_url, expiresIn);
+    // Sign profile image URL (handle both camelCase and snake_case)
+    const profileImagePath = userCopy.profileImageUrl || userCopy.profile_image_url;
+    if (profileImagePath) {
+        const signedUrl = generateSignedUrl(profileImagePath, expiresIn);
+        userCopy.profileImageUrl = signedUrl;
+        userCopy.profile_image_url = signedUrl;
     }
 
     return userCopy;

@@ -40,7 +40,7 @@ export const syncReceipts = asyncHandler(async (req, res) => {
     // Procesar cada recibo
     for (const receiptData of receipts) {
         try {
-            const { localId, serverId, imageUrl, createdAt, updatedAt } = receiptData;
+            let { localId, serverId, imageUrl, createdAt, updatedAt } = receiptData;
 
             // Validar que tenga localId o serverId
             if (!localId && !serverId) {
@@ -58,6 +58,24 @@ export const syncReceipts = asyncHandler(async (req, res) => {
                     error: 'Missing imageUrl'
                 });
                 continue;
+            }
+
+            // Normalizar imageUrl: convertir URLs firmadas /secure o legacy /uploads a ruta relativa userId/receipts/archivo
+            try {
+                if (imageUrl) {
+                    if (typeof imageUrl === 'string') {
+                        if (imageUrl.includes('/secure/') || imageUrl.startsWith('http')) {
+                            const u = new URL(imageUrl);
+                            imageUrl = u.pathname.replace(/^\/secure\//, '').replace(/^\/uploads\//, '');
+                            log.debug('Normalized sync imageUrl to relative path', { localId, imageUrl });
+                        } else if (imageUrl.includes('/uploads/')) {
+                            imageUrl = imageUrl.replace(/^\/uploads\//, '');
+                            log.debug('Normalized legacy uploads imageUrl to relative path', { localId, imageUrl });
+                        }
+                    }
+                }
+            } catch (e) {
+                log.warn('Could not normalize sync imageUrl, using as-is', { localId, imageUrl });
             }
 
             // Buscar recibo existente por serverId (si existe) o crear nuevo
