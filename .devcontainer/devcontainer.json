@@ -1,5 +1,5 @@
 {
-    "name": "recibos-app-bun",
+    "name": "tallylens-bun",
     "dockerFile": "Dockerfile",
     "forwardPorts": [
         3000,
@@ -29,5 +29,5 @@
         "source=/home/mauricio/projects/LAB/RECIBOS_APP/uploads,target=/workspaces/backend/uploads,type=bind",
         "source=${localWorkspaceFolder}/.devcontainer/secrets,target=/workspaces/backend/.devcontainer/secrets,type=bind,consistency=cached"
     ],
-    "runArgs": ["--network=host"]
+    "runArgs": ["--network=host", "--name=tallylens-bun"]
 }
