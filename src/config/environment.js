@@ -2,6 +2,7 @@ import joi from 'joi';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { readFileSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,6 +24,7 @@ const envSchema = joi.object({
     // External APIs
     OPENROUTER_API_KEY: joi.string().required().description('OpenRouter API key for AI categorization'),
     GOOGLE_APPLICATION_CREDENTIALS: joi.string().description('Path to Google Cloud credentials JSON'),
+    FIREBASE_SERVICE_ACCOUNT: joi.string().optional().description('Path to Firebase service account JSON'),
 
     // Security
     JWT_SECRET: joi.string().min(32).required().description('Secret for JWT token generation'),
@@ -96,6 +98,12 @@ export const config = {
         googleCloud: {
             credentials: envVars.GOOGLE_APPLICATION_CREDENTIALS,
         },
+    },
+
+    firebase: {
+        serviceAccount: envVars.FIREBASE_SERVICE_ACCOUNT
+            ? JSON.parse(readFileSync(envVars.FIREBASE_SERVICE_ACCOUNT, 'utf8'))
+            : null,
     },
 
     security: {

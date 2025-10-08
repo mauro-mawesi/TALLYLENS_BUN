@@ -15,21 +15,31 @@ async function initializeFirebase() {
     if (admin) return admin;
 
     try {
+        // Log configuration check
+        log.info('Checking Firebase configuration...');
+        log.info('Service Account path:', config.firebase?.serviceAccount ? 'loaded' : 'not found');
+
         // Dynamically import firebase-admin if available
-        const firebaseAdmin = await import('firebase-admin');
-        admin = firebaseAdmin;
+        const firebaseModule = await import('firebase-admin');
+        admin = firebaseModule.default || firebaseModule;
+        log.info('firebase-admin module loaded successfully');
 
         // Initialize Firebase with service account
         if (!admin.apps.length && config.firebase?.serviceAccount) {
+            log.info('Initializing Firebase with service account...');
             admin.initializeApp({
                 credential: admin.credential.cert(config.firebase.serviceAccount)
             });
             log.info('Firebase Admin SDK initialized successfully');
+        } else if (!config.firebase?.serviceAccount) {
+            log.warn('Firebase service account not configured. Set FIREBASE_SERVICE_ACCOUNT env var.');
+            return null;
         }
 
         return admin;
     } catch (error) {
-        log.warn('Firebase Admin SDK not available. Push notifications will be disabled.', error.message);
+        log.error('Firebase Admin SDK initialization failed:', error);
+        log.error('Error stack:', error.stack);
         return null;
     }
 }

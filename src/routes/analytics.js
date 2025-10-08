@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate } from '../middlewares/auth.js';
-import { generalLimiter } from '../middlewares/rateLimiter.js';
+import { userApiLimiter } from '../middlewares/rateLimiter.js';
 import { languageDetectorAuth } from '../config/i18n.js';
 import * as analyticsController from '../controllers/analyticsController.js';
 import { validate } from '../middlewares/validation.js';
@@ -8,9 +8,9 @@ import { param, query } from 'express-validator';
 
 const router = express.Router();
 
-// Apply rate limiting, authentication and language detection to all analytics routes
-router.use(generalLimiter);
+// Apply authentication, rate limiting and language detection to all analytics routes
 router.use(authenticate);
+router.use(userApiLimiter);  // User-specific rate limiting (more generous for authenticated users)
 router.use(languageDetectorAuth);
 
 /**

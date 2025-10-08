@@ -8,6 +8,7 @@ import {
     deleteBudget,
     duplicateBudget,
     getBudgetProgress,
+    getBudgetSpendingTrend,
     getBudgetsSummary,
     getBudgetInsights,
     getBudgetPredictions,
@@ -17,12 +18,14 @@ import {
     getAlertStats
 } from '../controllers/budgetController.js';
 import { authenticate } from '../middlewares/auth.js';
+import { userApiLimiter } from '../middlewares/rateLimiter.js';
 import { validate, sanitizeInput } from '../middlewares/validation.js';
 
 const router = Router();
 
-// Apply authentication and sanitization to all routes
+// Apply authentication, rate limiting and sanitization to all routes
 router.use(authenticate);
+router.use(userApiLimiter);  // User-specific rate limiting
 router.use(sanitizeInput);
 
 // Validation schemas
@@ -432,6 +435,27 @@ router.post('/:id/duplicate', [...uuidValidation, ...duplicateBudgetValidation],
  *         description: Budget progress details
  */
 router.get('/:id/progress', uuidValidation, validate, getBudgetProgress);
+
+/**
+ * @swagger
+ * /api/budgets/{id}/spending-trend:
+ *   get:
+ *     summary: Get historical spending trend and projection for budget
+ *     tags: [Budgets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Historical spending data with projection
+ */
+router.get('/:id/spending-trend', uuidValidation, validate, getBudgetSpendingTrend);
 
 /**
  * @swagger

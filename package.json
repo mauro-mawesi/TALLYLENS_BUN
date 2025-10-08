@@ -39,6 +39,7 @@
         "express-mongo-sanitize": "^2.2.0",
         "express-rate-limit": "^8.1.0",
         "express-validator": "^7.2.1",
+        "firebase-admin": "^13.5.0",
         "helmet": "^8.1.0",
         "helmet-csp": "^4.0.0",
         "i18n": "^0.15.2",

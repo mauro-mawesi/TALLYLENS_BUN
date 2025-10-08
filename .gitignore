@@ -64,6 +64,7 @@ test-results/
 
 # Credentials
 config/google-cloud-credentials.json
+firebase-service-account.json
 .devcontainer/secrets/
 *.pem
 *.key

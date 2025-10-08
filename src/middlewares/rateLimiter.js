@@ -35,7 +35,7 @@ const createRateLimiter = (options) => {
 // General API rate limiter
 export const generalLimiter = createRateLimiter({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // 100 requests per 15 minutes
+    max: 300, // 300 requests per 15 minutes (increased for mobile apps with multiple simultaneous calls)
     message: 'Too many requests from this IP, please try again later.'
 });
 
@@ -87,8 +87,16 @@ const createUserKeyGenerator = (req) => {
 // User-specific rate limiter for receipts
 export const userReceiptLimiter = createRateLimiter({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 50, // 50 receipt operations per hour per user
+    max: 200, // 200 receipt operations per hour per user
     message: 'Too many receipt operations for your account, please try again later.',
+    keyGenerator: createUserKeyGenerator
+});
+
+// User-specific rate limiter for general API calls (more generous for authenticated users)
+export const userApiLimiter = createRateLimiter({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 500, // 500 requests per 15 minutes per authenticated user
+    message: 'Too many API requests for your account, please try again later.',
     keyGenerator: createUserKeyGenerator
 });
 

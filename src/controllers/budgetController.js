@@ -39,11 +39,30 @@ export const getBudgets = asyncHandler(async (req, res) => {
         ]
     });
 
+    // Calculate progress for each budget
+    const budgetsWithProgress = await Promise.all(
+        budgets.map(async (budget) => {
+            try {
+                const progress = await budgetService.calculateCurrentSpending(budget.id);
+                return {
+                    ...budget.toJSON(),
+                    progress
+                };
+            } catch (error) {
+                log.error(`Error calculating progress for budget ${budget.id}:`, error);
+                return {
+                    ...budget.toJSON(),
+                    progress: null
+                };
+            }
+        })
+    );
+
     res.json({
         status: 'success',
         data: {
-            budgets,
-            count: budgets.length
+            budgets: budgetsWithProgress,
+            count: budgetsWithProgress.length
         }
     });
 });
@@ -84,10 +103,7 @@ export const getBudget = asyncHandler(async (req, res) => {
  */
 export const createBudget = asyncHandler(async (req, res) => {
     const userId = req.user.id;
-    const budgetData = {
-        ...req.body,
-        userId
-    };
+    const budgetData = { ...req.body, userId };
 
     const budget = await Budget.create(budgetData);
 
@@ -97,11 +113,7 @@ export const createBudget = asyncHandler(async (req, res) => {
 
     log.info(`Budget created: ${budget.id} by user ${userId}`);
 
-    res.status(201).json({
-        status: 'success',
-        message: req.t('budget.created_success'),
-        data: { budget }
-    });
+    res.status(201).json({ status: 'success', message: req.t('budget.created_success'), data: { budget } });
 });
 
 /**
@@ -131,11 +143,7 @@ export const updateBudget = asyncHandler(async (req, res) => {
 
     log.info(`Budget updated: ${id} by user ${userId}`);
 
-    res.json({
-        status: 'success',
-        message: req.t('budget.updated_success'),
-        data: { budget }
-    });
+    res.json({ status: 'success', message: req.t('budget.updated_success'), data: { budget } });
 });
 
 /**
@@ -209,10 +217,13 @@ export const getBudgetProgress = asyncHandler(async (req, res) => {
         throw new NotFoundError('Budget not found');
     }
 
+    log.info(`Getting progress for budget ${id}, dates: ${budget.startDate} to ${budget.endDate}, category: ${budget.category}`);
+
     // Check cache first
     const cacheKey = `budget:${id}:progress`;
     const cached = await cacheService.get(cacheKey);
     if (cached) {
+        log.info(`Returning cached progress for budget ${id}: ${JSON.stringify(cached)}`);
         return res.json({
             status: 'success',
             data: cached,
@@ -221,13 +232,66 @@ export const getBudgetProgress = asyncHandler(async (req, res) => {
     }
 
     const progress = await budgetService.calculateCurrentSpending(id);
+    log.info(`Calculated progress for budget ${id}:`);
+    log.info(`  - currentSpending: ${progress.currentSpending}`);
+    log.info(`  - totalBudget: ${progress.totalBudget}`);
+    log.info(`  - percentage: ${progress.percentage}`);
+    log.info(`  - receiptCount: ${progress.receiptCount}`);
 
     // Cache for 5 minutes
     await cacheService.set(cacheKey, progress, 300);
 
+    log.info(`Sending response with progress data: ${JSON.stringify(progress)}`);
+
     res.json({
         status: 'success',
         data: progress
+    });
+});
+
+/**
+ * GET /api/budgets/:id/spending-trend
+ * Get historical spending trend and projection for budget
+ */
+export const getBudgetSpendingTrend = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user.id;
+    // Query params with defaults
+    const months = Number.parseInt(req.query.months ?? '6', 10);
+    const mode = (req.query.mode ?? 'cumulative').toString();
+    const sparse = (req.query.sparse ?? 'true').toString() === 'true';
+
+    // Verify ownership
+    const budget = await Budget.findOne({ where: { id, userId } });
+    if (!budget) {
+        throw new NotFoundError('Budget not found');
+    }
+
+    // Check cache first (include params in key)
+    const cacheKey = `budget:${id}:spending-trend:${months}:${mode}:${sparse}`;
+    const cached = await cacheService.get(cacheKey);
+    if (cached) {
+        log.info(`Returning cached spending trend for budget ${id}`);
+        return res.json({
+            status: 'success',
+            data: cached,
+            cached: true
+        });
+    }
+
+    const trendData = await budgetService.getMonthlySpendingTrend(id, { months, mode, sparse });
+    log.info(`Calculated spending trend for budget ${id}:`);
+    if (Array.isArray(trendData.historicalData)) {
+        log.info(`  - Historical months: ${trendData.historicalData.length}`);
+    }
+    log.info(`  - Projection: ${JSON.stringify(trendData.projection)}`);
+
+    // Cache for 1 hour
+    await cacheService.set(cacheKey, trendData, 3600);
+
+    res.json({
+        status: 'success',
+        data: trendData
     });
 });
 
@@ -438,6 +502,7 @@ export default {
     deleteBudget,
     duplicateBudget,
     getBudgetProgress,
+    getBudgetSpendingTrend,
     getBudgetsSummary,
     getBudgetInsights,
     getBudgetPredictions,

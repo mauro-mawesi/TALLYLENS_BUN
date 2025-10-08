@@ -29,6 +29,8 @@ export async function calculateCurrentSpending(budgetId) {
             where.category = budget.category;
         }
 
+        log.info(`Query conditions for budget ${budgetId}: ${JSON.stringify(where)}`);
+
         const result = await Receipt.findOne({
             where,
             attributes: [
@@ -39,12 +41,14 @@ export async function calculateCurrentSpending(budgetId) {
             raw: true
         });
 
+        log.info(`Query result for budget ${budgetId}: ${JSON.stringify(result)}`);
         const totalSpending = parseFloat(result.totalSpending) || 0;
         const totalBudget = budget.getTotalBudget();
         const percentage = totalBudget > 0 ? (totalSpending / totalBudget) * 100 : 0;
 
         return {
             budgetId: budget.id,
+            budgetName: budget.name,
             totalBudget,
             currentSpending: totalSpending,
             remainingBudget: totalBudget - totalSpending,
@@ -52,6 +56,9 @@ export async function calculateCurrentSpending(budgetId) {
             receiptCount: parseInt(result.receiptCount) || 0,
             averageSpending: parseFloat(result.averageSpending) || 0,
             daysRemaining: budget.daysRemaining(),
+            daysElapsed: Math.max(0, Math.ceil((new Date() - new Date(budget.startDate)) / (1000 * 60 * 60 * 24))),
+            isActive: budget.isActive,
+            status: percentage >= 100 ? 'exceeded' : percentage >= 90 ? 'critical' : percentage >= 75 ? 'warning' : 'ok',
             startDate: budget.startDate,
             endDate: budget.endDate
         };
@@ -587,6 +594,162 @@ export async function getUserBudgetsSummary(userId) {
         };
     } catch (error) {
         log.error(`Error getting budgets summary for user ${userId}:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Get monthly spending trend with historical data and projection
+ * Returns real historical spending + current month partial + projection
+ */
+export async function getMonthlySpendingTrend(budgetId, options = {}) {
+    try {
+        const budget = await Budget.findByPk(budgetId);
+        if (!budget) {
+            throw new NotFoundError('Budget not found');
+        }
+
+        const now = new Date();
+        const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        // Options
+        const months = Number.parseInt(options.months ?? 6, 10); // historical months
+        const mode = (options.mode ?? 'cumulative').toString();  // 'cumulative' supported
+        const sparse = !!(options.sparse ?? true);
+
+        // Get last N months including current partial month
+        // Start at the first day of (now - months)
+        const startDate = new Date(now.getFullYear(), now.getMonth() - months, 1);
+
+        // Query receipts grouped by month
+        const where = {
+            userId: budget.userId,
+            purchaseDate: {
+                [Op.gte]: startDate,
+                [Op.lte]: now
+            },
+            amount: { [Op.not]: null }
+        };
+
+        // Filter by category if not global budget
+        if (budget.category) {
+            where.category = budget.category;
+        }
+
+        const receipts = await Receipt.findAll({
+            where,
+            attributes: ['purchaseDate', 'amount'],
+            raw: true,
+            order: [['purchaseDate', 'ASC']]
+        });
+
+        // Group by month and calculate totals; also collect current month daily
+        const monthlyData = {};
+        const currentMonthDaily = {};
+        receipts.forEach(receipt => {
+            const date = new Date(receipt.purchaseDate);
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+            if (!monthlyData[monthKey]) {
+                monthlyData[monthKey] = {
+                    month: monthKey,
+                    total: 0,
+                    count: 0,
+                    isCurrentMonth: date >= currentMonthStart
+                };
+            }
+
+            monthlyData[monthKey].total += parseFloat(receipt.amount);
+            monthlyData[monthKey].count += 1;
+
+            // If current month, build daily buckets
+            if (date >= currentMonthStart) {
+                const day = date.getDate();
+                if (!currentMonthDaily[day]) {
+                    currentMonthDaily[day] = 0;
+                }
+                currentMonthDaily[day] += parseFloat(receipt.amount);
+            }
+        });
+
+        // Sort by month
+        const sortedMonths = Object.values(monthlyData).sort((a, b) =>
+            a.month.localeCompare(b.month)
+        );
+
+        // Calculate projection for current month
+        const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const currentMonthData = monthlyData[currentMonthKey];
+
+        let projection = null;
+        if (currentMonthData) {
+            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            const daysElapsed = now.getDate();
+            const dailyRate = currentMonthData.total / daysElapsed;
+            const projectedTotal = dailyRate * daysInMonth;
+
+            projection = {
+                month: currentMonthKey,
+                currentSpending: currentMonthData.total,
+                daysElapsed,
+                daysInMonth,
+                dailyRate: parseFloat(dailyRate.toFixed(2)),
+                projectedTotal: parseFloat(projectedTotal.toFixed(2)),
+                willExceedBudget: projectedTotal > budget.amount,
+                confidence: Math.min(95, Math.round((daysElapsed / daysInMonth) * 100))
+            };
+        }
+
+        // Build current month daily cumulative series (if requested)
+        let currentMonth = null;
+        if (currentMonthData && mode === 'cumulative') {
+            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            const dailyPoints = [];
+            let cumulative = 0;
+            for (let d = 1; d <= now.getDate(); d++) {
+                const daySpending = currentMonthDaily[d] || 0;
+                if (sparse && daySpending === 0) {
+                    // skip no-receipt days
+                    continue;
+                }
+                cumulative += daySpending;
+                const dateStr = `${currentMonthKey}-${String(d).padStart(2, '0')}`;
+                dailyPoints.push({ date: dateStr, cumulative: parseFloat(cumulative.toFixed(2)) });
+            }
+            currentMonth = { month: currentMonthKey, daysInMonth, dailyPoints };
+        }
+
+        // Historical months array (limit to the last N months BEFORE current month if desired)
+        const historicalMonths = sortedMonths
+            .filter(m => m.month !== currentMonthKey) // exclude current
+            .slice(-months)
+            .map(m => ({
+                month: m.month,
+                total: parseFloat(m.total.toFixed(2)),
+                receiptCount: m.count
+            }));
+
+        return {
+            budgetId: budget.id,
+            budgetAmount: budget.amount,
+            currency: budget.currency,
+            category: budget.category || 'all',
+            historicalData: sortedMonths.map(m => ({
+                month: m.month,
+                total: parseFloat(m.total.toFixed(2)),
+                receiptCount: m.count,
+                isCurrentMonth: m.isCurrentMonth
+            })),
+            historicalMonths,
+            currentMonth,
+            projection,
+            period: {
+                startDate,
+                endDate: now
+            }
+        };
+    } catch (error) {
+        log.error(`Error getting monthly spending trend for budget ${budgetId}:`, error);
         throw error;
     }
 }
